@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { PageLoading } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/use-toast';
 import { Pagination } from '@/components/ui/pagination';
+import { ImportExportButtons } from '@/components/ui/ImportExportButtons';
 import { departmentService } from '@/lib/api/services/departments';
 import { teacherService } from '@/lib/api/services/teachers';
 import DepartmentModal from '@/components/modals/DepartmentModal';
@@ -111,6 +112,75 @@ export default function DepartmentsPage() {
     }
   };
 
+  // Import de départements
+  const handleImportDepartments = async (importedData: any[]) => {
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const data of importedData) {
+        try {
+          // Valider les données
+          if (!data.name || !data.code) {
+            errorCount++;
+            continue;
+          }
+
+          // Convertir head_of_department_id en entier si présent
+          const departmentData: CreateDepartmentData = {
+            name: data.name,
+            code: data.code,
+            description: data.description || '',
+            head_of_department: data.head_of_department_id ? parseInt(data.head_of_department_id) : undefined,
+            is_active: data.is_active === 'true' || data.is_active === '1' || data.is_active === true,
+          };
+
+          await departmentService.createDepartment(departmentData);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          console.error('Erreur lors de l\'import d\'un département:', error);
+        }
+      }
+
+      // Recharger la liste
+      const departmentsData = await departmentService.getDepartments({});
+      const departmentsArray = departmentsData.results || departmentsData || [];
+      setDepartments(departmentsArray);
+
+      addToast({
+        title: "Import terminé",
+        description: `${successCount} départements importés avec succès${errorCount > 0 ? `, ${errorCount} erreurs` : ''}`,
+        variant: errorCount > 0 ? "destructive" : "default"
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'import:', error);
+      addToast({
+        title: "Erreur d'import",
+        description: "Une erreur est survenue lors de l'import",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Définition des champs pour l'import/export
+  const departmentTemplateFields = [
+    { key: 'code', label: 'Code', example: 'INFO' },
+    { key: 'name', label: 'Nom', example: 'Département Informatique' },
+    { key: 'description', label: 'Description', example: 'Département spécialisé en informatique' },
+    { key: 'head_of_department_id', label: 'ID Responsable', example: '1' },
+    { key: 'is_active', label: 'Actif', example: 'true' },
+  ];
+
+  // Préparer les données pour l'export avec les bons champs
+  const exportData = departments.map(dept => ({
+    code: dept.code || '',
+    name: dept.name || '',
+    description: dept.description || '',
+    head_of_department_id: dept.head_of_department || '',
+    is_active: dept.is_active ? 'true' : 'false',
+  }));
+
   // Filtrage des départements
   const filteredDepartments = departments.filter(dept =>
     dept.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -148,10 +218,18 @@ export default function DepartmentsPage() {
             Gérez les départements et leurs responsables
           </p>
         </div>
-        <Button onClick={handleAddDepartment} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Nouveau Département
-        </Button>
+        <div className="flex gap-2">
+          <ImportExportButtons
+            data={exportData}
+            templateFields={departmentTemplateFields}
+            filename="departements"
+            onImport={handleImportDepartments}
+          />
+          <Button onClick={handleAddDepartment} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Nouveau Département
+          </Button>
+        </div>
       </div>
 
       {/* Statistiques */}

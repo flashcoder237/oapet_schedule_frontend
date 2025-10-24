@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageLoading } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/use-toast';
+import { ImportExportButtons } from '@/components/ui/ImportExportButtons';
 import { userService } from '@/lib/api/services/users';
 import UserModal from '@/components/modals/UserModal';
 import type { CreateUserData, UpdateUserData } from '@/lib/api/services/users';
@@ -177,6 +178,76 @@ export default function UsersPage() {
     }
   };
 
+  // Import d'utilisateurs
+  const handleImportUsers = async (importedData: any[]) => {
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const data of importedData) {
+        try {
+          // Valider les données
+          if (!data.username || !data.email) {
+            errorCount++;
+            continue;
+          }
+
+          const userData: CreateUserData = {
+            username: data.username,
+            email: data.email,
+            first_name: data.first_name || '',
+            last_name: data.last_name || '',
+            role: data.role || 'student',
+            is_active: data.is_active === 'true' || data.is_active === '1' || data.is_active === true,
+            password: 'Password123!', // Mot de passe par défaut
+          };
+
+          await userService.createUser(userData);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          console.error('Erreur lors de l\'import d\'un utilisateur:', error);
+        }
+      }
+
+      // Recharger la liste
+      setCurrentPage(1);
+
+      addToast({
+        title: "Import terminé",
+        description: `${successCount} utilisateurs importés${errorCount > 0 ? `, ${errorCount} erreurs` : ''}`,
+        variant: errorCount > 0 ? "destructive" : "default"
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'import:', error);
+      addToast({
+        title: "Erreur d'import",
+        description: "Une erreur est survenue lors de l'import",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Définition des champs pour l'import/export
+  const userTemplateFields = [
+    { key: 'username', label: 'Nom d\'utilisateur', example: 'jdupont' },
+    { key: 'email', label: 'Email', example: 'jean.dupont@example.com' },
+    { key: 'first_name', label: 'Prénom', example: 'Jean' },
+    { key: 'last_name', label: 'Nom', example: 'Dupont' },
+    { key: 'role', label: 'Rôle', example: 'student' },
+    { key: 'is_active', label: 'Actif', example: 'true' },
+  ];
+
+  // Préparer les données pour l'export
+  const exportData = users.map(user => ({
+    username: user.username || '',
+    email: user.email || '',
+    first_name: user.first_name || '',
+    last_name: user.last_name || '',
+    role: user.role || '',
+    is_active: user.is_active ? 'true' : 'false',
+  }));
+
   const roles = [
     { value: 'all', label: 'Tous les rôles' },
     { value: 'admin', label: 'Administrateur' },
@@ -269,10 +340,18 @@ export default function UsersPage() {
             Gérez les utilisateurs et leurs permissions
           </p>
         </div>
-        <Button onClick={handleAddUser} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Nouvel Utilisateur
-        </Button>
+        <div className="flex gap-2">
+          <ImportExportButtons
+            data={exportData}
+            templateFields={userTemplateFields}
+            filename="utilisateurs"
+            onImport={handleImportUsers}
+          />
+          <Button onClick={handleAddUser} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Nouvel Utilisateur
+          </Button>
+        </div>
       </div>
 
       {/* Statistiques */}

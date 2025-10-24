@@ -258,7 +258,7 @@ export function SessionForm({
                     Cours
                   </Label>
                   <Select
-                    value={formData.course ? formData.course.toString() : undefined}
+                    value={formData.course ? formData.course.toString() : ''}
                     onValueChange={(value) => handleChange('course', parseInt(value))}
                   >
                     <SelectTrigger>
@@ -302,7 +302,7 @@ export function SessionForm({
                     Enseignant
                   </Label>
                   <Select
-                    value={formData.teacher ? formData.teacher.toString() : undefined}
+                    value={formData.teacher ? formData.teacher.toString() : ''}
                     onValueChange={(value) => handleChange('teacher', parseInt(value))}
                   >
                     <SelectTrigger>
@@ -324,7 +324,7 @@ export function SessionForm({
                     Salle
                   </Label>
                   <Select
-                    value={formData.room ? formData.room.toString() : undefined}
+                    value={formData.room ? formData.room.toString() : ''}
                     onValueChange={(value) => handleChange('room', parseInt(value))}
                   >
                     <SelectTrigger>
@@ -346,7 +346,7 @@ export function SessionForm({
                 <div className="space-y-2">
                   <Label>Jour</Label>
                   <Select
-                    value={formData.day || undefined}
+                    value={formData.day || ''}
                     onValueChange={(value) => handleChange('day', value)}
                   >
                     <SelectTrigger>

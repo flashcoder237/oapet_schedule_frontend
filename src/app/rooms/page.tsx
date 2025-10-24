@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { PageLoading } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/use-toast';
 import { Pagination } from '@/components/ui/pagination';
+import { ImportExportButtons } from '@/components/ui/ImportExportButtons';
 import { roomService } from '@/lib/api/services/rooms';
 import { courseService } from '@/lib/api/services/courses';
 import type { Room, RoomStats } from '@/types/api';
@@ -153,6 +154,79 @@ export default function RoomsPage() {
     }
   };
 
+  // Import de salles
+  const handleImportRooms = async (importedData: any[]) => {
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const data of importedData) {
+        try {
+          // Valider les données
+          if (!data.code || !data.name) {
+            errorCount++;
+            continue;
+          }
+
+          const roomData = {
+            code: data.code,
+            name: data.name,
+            capacity: parseInt(data.capacity) || 0,
+            room_type: data.room_type || 'classroom',
+            building: data.building || '',
+            floor: parseInt(data.floor) || 0,
+            is_available: data.is_available === 'true' || data.is_available === '1' || data.is_available === true,
+          };
+
+          await roomService.createRoom(roomData);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          console.error('Erreur lors de l\'import d\'une salle:', error);
+        }
+      }
+
+      // Recharger la liste
+      const roomsData = await roomService.getRooms({});
+      setRooms(roomsData.results || []);
+
+      addToast({
+        title: "Import terminé",
+        description: `${successCount} salles importées${errorCount > 0 ? `, ${errorCount} erreurs` : ''}`,
+        variant: errorCount > 0 ? "destructive" : "default"
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'import:', error);
+      addToast({
+        title: "Erreur d'import",
+        description: "Une erreur est survenue lors de l'import",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Définition des champs pour l'import/export
+  const roomTemplateFields = [
+    { key: 'code', label: 'Code', example: 'A101' },
+    { key: 'name', label: 'Nom', example: 'Salle A101' },
+    { key: 'capacity', label: 'Capacité', example: '30' },
+    { key: 'room_type', label: 'Type', example: 'classroom' },
+    { key: 'building', label: 'Bâtiment', example: 'A' },
+    { key: 'floor', label: 'Étage', example: '1' },
+    { key: 'is_active', label: 'Active', example: 'true' },
+  ];
+
+  // Préparer les données pour l'export
+  const exportData = rooms.map(room => ({
+    code: room.code || '',
+    name: room.name || '',
+    capacity: room.capacity || '',
+    room_type: room.room_type || '',
+    building: room.building || '',
+    floor: room.floor || '',
+    is_active: room.is_active ? 'true' : 'false',
+  }));
+
   // Filtrage des salles
   const filteredRooms = rooms.filter(room => {
     const matchesSearch = !searchTerm ||
@@ -203,10 +277,18 @@ export default function RoomsPage() {
           </p>
         </div>
         {canManageSchedules() && (
-          <Button onClick={handleAddRoom} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Nouvelle Salle
-          </Button>
+          <div className="flex gap-2">
+            <ImportExportButtons
+              data={exportData}
+              templateFields={roomTemplateFields}
+              filename="salles"
+              onImport={handleImportRooms}
+            />
+            <Button onClick={handleAddRoom} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Nouvelle Salle
+            </Button>
+          </div>
         )}
       </div>
 
