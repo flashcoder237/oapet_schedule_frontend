@@ -9,13 +9,14 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Pagination } from '@/components/ui/pagination'
 import { BulkActions, CommonBulkActions } from '@/components/ui/BulkActions'
-import { Plus, Edit, Trash2, BookOpen, Users, Search, GraduationCap, TrendingUp, Building2, X } from 'lucide-react'
+import { Plus, Edit, Trash2, BookOpen, Users, Search, GraduationCap, TrendingUp, Building2, X, DoorOpen } from 'lucide-react'
 import { classService } from '@/lib/api/services/classes'
 import { courseService } from '@/lib/api/services/courses'
 import type { StudentClass, Department, Curriculum } from '@/lib/api/services/classes'
 import { useToast } from '@/components/ui/use-toast'
 import { useRouter } from 'next/navigation'
 import { ImportExport } from '@/components/ui/ImportExport'
+import ClassRoomPreferencesModal from '@/components/modals/ClassRoomPreferencesModal'
 
 // Niveaux académiques jusqu'au doctorat
 const ACADEMIC_LEVELS = [
@@ -39,6 +40,8 @@ export default function ClassesPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [showDepartmentModal, setShowDepartmentModal] = useState(false)
+  const [showRoomPreferencesModal, setShowRoomPreferencesModal] = useState(false)
+  const [selectedClassForPreferences, setSelectedClassForPreferences] = useState<{ id: number; name: string } | null>(null)
   const [editingClass, setEditingClass] = useState<StudentClass | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -635,6 +638,18 @@ export default function ClassesPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => {
+                              setSelectedClassForPreferences({ id: cls.id, name: cls.name })
+                              setShowRoomPreferencesModal(true)
+                            }}
+                            title="Préférences de salle"
+                            className="hover:bg-primary/10 hover:text-primary"
+                          >
+                            <DoorOpen className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleEdit(cls)}
                             title="Modifier"
                             className="hover:bg-primary/10 hover:text-primary"
@@ -973,6 +988,22 @@ export default function ClassesPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Modal Préférences de Salle */}
+      {selectedClassForPreferences && (
+        <ClassRoomPreferencesModal
+          isOpen={showRoomPreferencesModal}
+          onClose={() => {
+            setShowRoomPreferencesModal(false)
+            setSelectedClassForPreferences(null)
+          }}
+          classId={selectedClassForPreferences.id}
+          className={selectedClassForPreferences.name}
+          onSave={() => {
+            fetchClasses()
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -30,6 +30,7 @@ import {
   ArrowUpDown,
   MoreHorizontal,
   Printer,
+  Sparkles,
 } from 'lucide-react';
 import { scheduleService } from '@/lib/api/services/schedules';
 import { Schedule, AcademicPeriod } from '@/types/api';
@@ -38,6 +39,7 @@ import { ScheduleEditModal } from './components/ScheduleEditModal';
 import { ScheduleStatsPanel } from './components/ScheduleStatsPanel';
 import { AdminMenu } from './components/AdminMenu';
 import { PrintScheduleModal } from './components/PrintScheduleModal';
+import GenerationBlockagesModal from '@/components/modals/GenerationBlockagesModal';
 
 export default function AdminSchedulesPage() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -52,6 +54,9 @@ export default function AdminSchedulesPage() {
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showStats, setShowStats] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [showBlockagesModal, setShowBlockagesModal] = useState(false);
+  const [generationResult, setGenerationResult] = useState<any>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // États de sélection pour les actions groupées
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -198,6 +203,48 @@ export default function AdminSchedulesPage() {
         description: error.response?.data?.message || 'Impossible de mettre à jour l\'emploi du temps',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleGenerateAdvanced = async (schedule: Schedule) => {
+    setIsGenerating(true);
+    try {
+      const result = await scheduleService.generateAdvanced(schedule.id, {
+        preview_mode: false,
+        force_regenerate: true
+      });
+
+      setGenerationResult(result);
+
+      if (result.success) {
+        addToast({
+          title: 'Génération Réussie',
+          description: `${result.occurrences_created || 0} sessions créées`,
+          variant: 'default',
+        });
+
+        if (result.blockages && result.blockages.length > 0) {
+          setShowBlockagesModal(true);
+        }
+
+        loadData();
+      } else {
+        setShowBlockagesModal(true);
+        addToast({
+          title: 'Génération Incomplète',
+          description: result.message || 'Certains cours n\'ont pas pu être programmés',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      console.error('Erreur lors de la génération:', error);
+      addToast({
+        title: 'Erreur',
+        description: error.response?.data?.message || 'Impossible de générer l\'emploi du temps',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -711,6 +758,16 @@ export default function AdminSchedulesPage() {
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => handleGenerateAdvanced(schedule)}
+                              disabled={isGenerating}
+                              className="hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-all"
+                              title="Génération Avancée"
+                            >
+                              <Sparkles className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handlePublish(schedule)}
                               className={
                                 schedule.is_published
@@ -765,6 +822,17 @@ export default function AdminSchedulesPage() {
         schedules={schedules}
         academicPeriods={academicPeriods}
       />
+
+      {/* Modal des blocages de génération */}
+      {generationResult && (
+        <GenerationBlockagesModal
+          isOpen={showBlockagesModal}
+          onClose={() => setShowBlockagesModal(false)}
+          blockages={generationResult.blockages || []}
+          generalSuggestions={generationResult.suggestions || []}
+          stats={generationResult.stats}
+        />
+      )}
     </div>
   );
 }

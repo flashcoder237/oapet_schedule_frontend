@@ -74,6 +74,32 @@ export const scheduleService = {
     return apiClient.post<{ message: string }>(`${API_ENDPOINTS.SCHEDULES}${id}/unpublish/`);
   },
 
+  async generateAdvanced(id: number, params?: {
+    preview_mode?: boolean;
+    force_regenerate?: boolean;
+    date_from?: string;
+    date_to?: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    occurrences_created?: number;
+    blockages?: Array<{
+      course: string;
+      course_id: number;
+      reasons: string[];
+      suggestions: string[];
+    }>;
+    suggestions?: string[];
+    stats?: {
+      total_courses: number;
+      courses_scheduled: number;
+      courses_blocked: number;
+      total_occurrences: number;
+    };
+  }> {
+    return apiClient.post(`${API_ENDPOINTS.SCHEDULES}${id}/generate_advanced/`, params || {});
+  },
+
   /**
    * Récupère le schedule actif pour une classe donnée
    */

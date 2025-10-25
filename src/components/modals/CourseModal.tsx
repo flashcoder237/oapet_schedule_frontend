@@ -20,7 +20,8 @@ import {
   Lightbulb,
   TrendingUp,
   Target,
-  Sparkles
+  Sparkles,
+  Wand2
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,8 @@ interface CourseFormData {
   semester: string;
   academic_year: string;
   is_active: boolean;
+  use_manual_priority?: boolean;
+  manual_scheduling_priority?: 1 | 2 | 3 | 4 | 5;
 }
 
 interface CourseModalProps {
@@ -81,7 +84,9 @@ export default function CourseModal({ isOpen, onClose, course, onSave }: CourseM
     requires_laboratory: false,
     semester: 'S1',
     academic_year: '2024-2025',
-    is_active: true
+    is_active: true,
+    use_manual_priority: false,
+    manual_scheduling_priority: 3
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -98,6 +103,22 @@ export default function CourseModal({ isOpen, onClose, course, onSave }: CourseM
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiRecommendations, setAiRecommendations] = useState<string[]>([]);
   const [showFormAssistant, setShowFormAssistant] = useState(true);
+
+  // États pour la génération automatique
+  const [autoGenerate, setAutoGenerate] = useState(false);
+  const [creditHours, setCreditHours] = useState(15); // 1 crédit = 15H par défaut
+  const [courseDistribution, setCourseDistribution] = useState({
+    CM: 40,
+    TD: 30,
+    TP: 20,
+    TPE: 10
+  });
+  const [courseDetails, setCourseDetails] = useState({
+    CM: { hours_per_week: 2, requires_projector: false, requires_computer: false, requires_laboratory: false },
+    TD: { hours_per_week: 2, requires_projector: false, requires_computer: false, requires_laboratory: false },
+    TP: { hours_per_week: 2, requires_projector: false, requires_computer: true, requires_laboratory: false },
+    TPE: { hours_per_week: 1, requires_projector: false, requires_computer: false, requires_laboratory: false }
+  });
 
   // Charger les enseignants et départements
   useEffect(() => {
@@ -319,12 +340,51 @@ export default function CourseModal({ isOpen, onClose, course, onSave }: CourseM
 
     setIsLoading(true);
     try {
-      await onSave(formData);
-      addToast({
-        title: 'Succès',
-        description: course ? 'Cours modifié avec succès' : 'Cours créé avec succès',
-        variant: 'default'
-      });
+      if (autoGenerate && !course) {
+        // Génération automatique de plusieurs types de cours
+        const totalHours = formData.credits * creditHours;
+        const coursesToCreate: Array<{ type: string; hours: number }> = [];
+
+        // Calculer les heures pour chaque type
+        Object.entries(courseDistribution).forEach(([type, percentage]) => {
+          if (percentage > 0) {
+            const hours = Math.round((totalHours * percentage) / 100);
+            if (hours > 0) {
+              coursesToCreate.push({ type, hours });
+            }
+          }
+        });
+
+        // Créer chaque cours avec ses détails spécifiques
+        for (const { type, hours } of coursesToCreate) {
+          const details = courseDetails[type as keyof typeof courseDetails];
+          const courseData = {
+            ...formData,
+            code: `${formData.code}-${type}`,
+            course_type: type as any,
+            total_hours: hours,
+            hours_per_week: details.hours_per_week,
+            requires_projector: details.requires_projector,
+            requires_computer: details.requires_computer,
+            requires_laboratory: details.requires_laboratory
+          };
+          await onSave(courseData);
+        }
+
+        addToast({
+          title: 'Succès',
+          description: `${coursesToCreate.length} cours créés automatiquement`,
+          variant: 'default'
+        });
+      } else {
+        // Création/modification normale d'un seul cours
+        await onSave(formData);
+        addToast({
+          title: 'Succès',
+          description: course ? 'Cours modifié avec succès' : 'Cours créé avec succès',
+          variant: 'default'
+        });
+      }
       onClose();
     } catch (error: any) {
       console.error('Erreur lors de la sauvegarde:', error);
@@ -486,6 +546,164 @@ export default function CourseModal({ isOpen, onClose, course, onSave }: CourseM
       exit={{ opacity: 0, x: -20 }}
       className="space-y-4"
     >
+      {/* Génération automatique - Seulement en mode création */}
+      {!course && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg">
+          <label className="flex items-center gap-3 cursor-pointer mb-3">
+            <input
+              type="checkbox"
+              checked={autoGenerate}
+              onChange={(e) => setAutoGenerate(e.target.checked)}
+              className="rounded w-5 h-5"
+            />
+            <div className="flex items-center gap-2">
+              <Wand2 className="w-5 h-5 text-purple-600" />
+              <span className="text-sm font-semibold text-foreground">
+                Générer automatiquement les types de cours (CM, TD, TP, TPE)
+              </span>
+            </div>
+          </label>
+
+          {autoGenerate && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="space-y-3 mt-3 pt-3 border-t border-blue-200"
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">
+                    Heures par crédit
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={creditHours}
+                    onChange={(e) => setCreditHours(parseInt(e.target.value) || 15)}
+                    className="w-full px-2 py-1 bg-background border border-border rounded text-sm"
+                  />
+                </div>
+                <div className="text-sm">
+                  <span className="text-xs font-medium text-muted-foreground">Total</span>
+                  <p className="text-lg font-bold text-primary">
+                    {formData.credits * creditHours}H
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs font-medium text-foreground">Configuration par type de cours</p>
+
+                {(['CM', 'TD', 'TP', 'TPE'] as const).map((type) => {
+                  const totalHours = Math.round((formData.credits * creditHours * courseDistribution[type]) / 100);
+                  return (
+                    <div key={type} className="p-3 bg-background border border-border rounded-lg space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground">{type}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {totalHours}H total
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">% du total</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={courseDistribution[type]}
+                            onChange={(e) => setCourseDistribution({
+                              ...courseDistribution,
+                              [type]: parseInt(e.target.value) || 0
+                            })}
+                            className="w-full px-2 py-1 bg-background border border-border rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">H/semaine</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={courseDetails[type].hours_per_week}
+                            onChange={(e) => setCourseDetails({
+                              ...courseDetails,
+                              [type]: {
+                                ...courseDetails[type],
+                                hours_per_week: parseInt(e.target.value) || 0
+                              }
+                            })}
+                            className="w-full px-2 py-1 bg-background border border-border rounded text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 text-xs">
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={courseDetails[type].requires_projector}
+                            onChange={(e) => setCourseDetails({
+                              ...courseDetails,
+                              [type]: {
+                                ...courseDetails[type],
+                                requires_projector: e.target.checked
+                              }
+                            })}
+                            className="rounded"
+                          />
+                          <span className="text-muted-foreground">Projecteur</span>
+                        </label>
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={courseDetails[type].requires_computer}
+                            onChange={(e) => setCourseDetails({
+                              ...courseDetails,
+                              [type]: {
+                                ...courseDetails[type],
+                                requires_computer: e.target.checked
+                              }
+                            })}
+                            className="rounded"
+                          />
+                          <span className="text-muted-foreground">Ordinateurs</span>
+                        </label>
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={courseDetails[type].requires_laboratory}
+                            onChange={(e) => setCourseDetails({
+                              ...courseDetails,
+                              [type]: {
+                                ...courseDetails[type],
+                                requires_laboratory: e.target.checked
+                              }
+                            })}
+                            className="rounded"
+                          />
+                          <span className="text-muted-foreground">Laboratoire</span>
+                        </label>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div className="text-xs text-center pt-2 border-t border-border">
+                  <span className={`font-medium ${
+                    (courseDistribution.CM + courseDistribution.TD + courseDistribution.TP + courseDistribution.TPE) === 100
+                      ? 'text-green-600'
+                      : 'text-orange-600'
+                  }`}>
+                    Total répartition : {courseDistribution.CM + courseDistribution.TD + courseDistribution.TP + courseDistribution.TPE}%
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">
@@ -556,60 +774,64 @@ export default function CourseModal({ isOpen, onClose, course, onSave }: CourseM
             </p>
           )}
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Heures par semaine
-          </label>
-          <input
-            type="number"
-            min="1"
-            value={formData.hours_per_week}
-            onChange={(e) => handleInputChange('hours_per_week', parseInt(e.target.value) || 0)}
-            className={`w-full px-3 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground placeholder:text-muted-foreground ${
-              errors.hours_per_week ? 'border-destructive/50' : 'border-border'
-            }`}
-            placeholder="2"
-          />
-          {errors.hours_per_week && (
-            <p className="text-destructive text-sm mt-1 flex items-center">
-              <AlertCircle className="w-4 h-4 mr-1" />
-              {errors.hours_per_week}
-            </p>
-          )}
-        </div>
+
+        {!autoGenerate && (
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Heures par semaine
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={formData.hours_per_week}
+              onChange={(e) => handleInputChange('hours_per_week', parseInt(e.target.value) || 0)}
+              className={`w-full px-3 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground placeholder:text-muted-foreground ${
+                errors.hours_per_week ? 'border-destructive/50' : 'border-border'
+              }`}
+              placeholder="2"
+            />
+            {errors.hours_per_week && (
+              <p className="text-destructive text-sm mt-1 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                {errors.hours_per_week}
+              </p>
+            )}
+          </div>
+        )}
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Type de cours
-          </label>
-          <select
-            value={formData.course_type}
-            onChange={(e) => handleInputChange('course_type', e.target.value)}
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
-          >
-            {courseTypes.map(type => (
-              <option key={type.value} value={type.value}>{type.label}</option>
-            ))}
-          </select>
+      {!autoGenerate && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Type de cours
+            </label>
+            <select
+              value={formData.course_type}
+              onChange={(e) => handleInputChange('course_type', e.target.value)}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+            >
+              {courseTypes.map(type => (
+                <option key={type.value} value={type.value}>{type.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Total d'heures
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={formData.total_hours}
+              onChange={(e) => handleInputChange('total_hours', parseInt(e.target.value) || 0)}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground placeholder:text-muted-foreground"
+              placeholder="30"
+            />
+          </div>
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Total d'heures
-          </label>
-          <input
-            type="number"
-            min="1"
-            value={formData.total_hours}
-            onChange={(e) => handleInputChange('total_hours', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground placeholder:text-muted-foreground"
-            placeholder="30"
-          />
-        </div>
-      </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
@@ -713,42 +935,56 @@ export default function CourseModal({ isOpen, onClose, course, onSave }: CourseM
       exit={{ opacity: 0, x: -20 }}
       className="space-y-4"
     >
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-2">
-          Équipements requis
-        </label>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <label className="flex items-center space-x-2 cursor-pointer p-3 rounded-lg border hover:bg-muted transition-colors">
-            <input
-              type="checkbox"
-              checked={formData.requires_projector}
-              onChange={() => handleBooleanToggle('requires_projector')}
-              className="rounded"
-            />
-            <span className="text-sm text-foreground">Projecteur</span>
+      {!autoGenerate && (
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Équipements requis
           </label>
-          
-          <label className="flex items-center space-x-2 cursor-pointer p-3 rounded-lg border hover:bg-muted transition-colors">
-            <input
-              type="checkbox"
-              checked={formData.requires_computer}
-              onChange={() => handleBooleanToggle('requires_computer')}
-              className="rounded"
-            />
-            <span className="text-sm text-foreground">Ordinateurs</span>
-          </label>
-          
-          <label className="flex items-center space-x-2 cursor-pointer p-3 rounded-lg border hover:bg-muted transition-colors">
-            <input
-              type="checkbox"
-              checked={formData.requires_laboratory}
-              onChange={() => handleBooleanToggle('requires_laboratory')}
-              className="rounded"
-            />
-            <span className="text-sm text-foreground">Laboratoire</span>
-          </label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label className="flex items-center space-x-2 cursor-pointer p-3 rounded-lg border hover:bg-muted transition-colors">
+              <input
+                type="checkbox"
+                checked={formData.requires_projector}
+                onChange={() => handleBooleanToggle('requires_projector')}
+                className="rounded"
+              />
+              <span className="text-sm text-foreground">Projecteur</span>
+            </label>
+
+            <label className="flex items-center space-x-2 cursor-pointer p-3 rounded-lg border hover:bg-muted transition-colors">
+              <input
+                type="checkbox"
+                checked={formData.requires_computer}
+                onChange={() => handleBooleanToggle('requires_computer')}
+                className="rounded"
+              />
+              <span className="text-sm text-foreground">Ordinateurs</span>
+            </label>
+
+            <label className="flex items-center space-x-2 cursor-pointer p-3 rounded-lg border hover:bg-muted transition-colors">
+              <input
+                type="checkbox"
+                checked={formData.requires_laboratory}
+                onChange={() => handleBooleanToggle('requires_laboratory')}
+                className="rounded"
+              />
+              <span className="text-sm text-foreground">Laboratoire</span>
+            </label>
+          </div>
         </div>
-      </div>
+      )}
+
+      {autoGenerate && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-900 font-medium mb-2">
+            ℹ️ Mode génération automatique activé
+          </p>
+          <p className="text-xs text-blue-700">
+            Les équipements ont été configurés pour chaque type de cours dans l'étape précédente.
+            Les cours seront créés avec ces configurations.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -792,7 +1028,49 @@ export default function CourseModal({ isOpen, onClose, course, onSave }: CourseM
           placeholder="30"
         />
       </div>
-      
+
+      {/* Section Priorité de Programmation */}
+      <div className="border border-border rounded-lg p-4 bg-muted/30">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Target className="w-4 h-4 text-primary" />
+          Priorité de Programmation
+        </h3>
+
+        <div className="space-y-3">
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.use_manual_priority || false}
+              onChange={() => handleBooleanToggle('use_manual_priority')}
+              className="rounded"
+            />
+            <span className="text-sm text-foreground">Utiliser une priorité manuelle</span>
+          </label>
+
+          {formData.use_manual_priority && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Niveau de priorité
+              </label>
+              <select
+                value={formData.manual_scheduling_priority || 3}
+                onChange={(e) => handleInputChange('manual_scheduling_priority', parseInt(e.target.value) as 1 | 2 | 3 | 4 | 5)}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+              >
+                <option value={1}>1 - Très Haute (à planifier en premier)</option>
+                <option value={2}>2 - Haute</option>
+                <option value={3}>3 - Moyenne</option>
+                <option value={4}>4 - Basse</option>
+                <option value={5}>5 - Très Basse (flexible)</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Les cours avec priorité haute seront programmés avant les cours de priorité basse lors de la génération automatique.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div>
         <label className="flex items-center space-x-2 cursor-pointer">
           <input
