@@ -974,12 +974,21 @@ export default function SchedulePage() {
         <AnimatePresence>
           {(editMode === 'edit' || editMode === 'drag') && canManageSchedules() && (
             <>
-              {/* Bouton mode sélection */}
+              {/* Bouton mode sélection - Déplaçable */}
               <motion.div
+                drag
+                dragMomentum={false}
+                dragElastic={0.1}
+                dragConstraints={{
+                  top: -window.innerHeight + 100,
+                  bottom: 0,
+                  left: -window.innerWidth + 100,
+                  right: 0
+                }}
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
-                className="fixed bottom-48 right-6 z-50"
+                className="fixed bottom-70 right-6 z-[50] cursor-move"
               >
                 <Button
                   onClick={() => {
@@ -993,18 +1002,27 @@ export default function SchedulePage() {
                       ? 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700'
                       : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
                   }`}
-                  title={isSelectionMode ? "Quitter le mode sélection" : "Mode sélection"}
+                  title={isSelectionMode ? "Quitter le mode sélection (Déplaçable)" : "Mode sélection (Déplaçable)"}
                 >
                   <CheckSquare className="h-6 w-6 text-white" />
                 </Button>
               </motion.div>
 
-              {/* Bouton d'ajout de session - repositionné */}
+              {/* Bouton d'ajout de session - Déplaçable */}
               <motion.div
+                drag
+                dragMomentum={false}
+                dragElastic={0.1}
+                dragConstraints={{
+                  top: -window.innerHeight + 100,
+                  bottom: 0,
+                  left: -window.innerWidth + 100,
+                  right: 0
+                }}
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
-                className="fixed bottom-32 right-6 z-50"
+                className="fixed bottom-40 right-6 z-[50] cursor-move"
               >
                 <Button
                   onClick={() => {
@@ -1012,57 +1030,84 @@ export default function SchedulePage() {
                     setShowSessionForm(true);
                   }}
                   className="rounded-full w-14 h-14 shadow-lg bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 p-0 mb-4"
-                  title="Ajouter une session"
+                  title="Ajouter une session (Déplaçable)"
                 >
                   <Plus className="h-6 w-6 text-white" />
                 </Button>
               </motion.div>
 
-              {/* Bouton de gestion des ressources - repositionné */}
+              {/* Bouton de gestion des ressources - Déplaçable */}
               <motion.div
+                drag
+                dragMomentum={false}
+                dragElastic={0.1}
+                dragConstraints={{
+                  top: -window.innerHeight + 100,
+                  bottom: 0,
+                  left: -window.innerWidth + 100,
+                  right: 0
+                }}
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
                 transition={{ delay: 0.1 }}
-                className="fixed bottom-16 right-6 z-50"
+                className="fixed bottom-60 right-6 z-[50] cursor-move"
               >
                 <Button
                   onClick={() => setShowManagementPanel(true)}
                   className="rounded-full w-14 h-14 shadow-lg bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 p-0"
-                  title="Gérer les cours, enseignants et salles"
+                  title="Gérer les cours, enseignants et salles (Déplaçable)"
                 >
                   <Settings2 className="h-6 w-6 text-white" />
                 </Button>
               </motion.div>
 
-              {/* Indicateur de mode drag/edit */}
+              {/* Indicateur de mode drag/edit - Déplaçable */}
               <motion.div
+                drag
+                dragMomentum={false}
+                dragElastic={0.1}
+                dragConstraints={{
+                  top: -window.innerHeight + 100,
+                  bottom: 0,
+                  left: -window.innerWidth + 200,
+                  right: 0
+                }}
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
                 transition={{ delay: 0.2 }}
-                className="fixed top-32 right-6 z-40"
+                className="fixed top-25 right-6 z-[50] cursor-move"
               >
                 <div className={`px-3 py-2 rounded-lg shadow-lg text-white text-sm font-medium ${
-                  editMode === 'edit' 
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600' 
+                  editMode === 'edit'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600'
                     : 'bg-gradient-to-r from-green-500 to-teal-600'
                 }`}>
                   {editMode === 'edit' ? '✏️ Mode Édition' : '🖱️ Mode Drag'}
                 </div>
               </motion.div>
 
-              {/* Instructions de drag & drop */}
+              {/* Instructions de drag & drop - Déplaçable */}
               {editMode === 'drag' && (
                 <motion.div
+                  drag
+                  dragMomentum={false}
+                  dragElastic={0.1}
+                  dragConstraints={{
+                    top: -window.innerHeight + 150,
+                    bottom: 0,
+                    left: -window.innerWidth + 250,
+                    right: 0
+                  }}
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0, opacity: 0 }}
                   transition={{ delay: 0.3 }}
-                  className="fixed top-48 right-6 z-40 max-w-xs"
+                  className="fixed top-45 right-6 z-[50] max-w-xs cursor-move"
                 >
                   <div className="bg-white rounded-lg shadow-lg border p-3 text-xs">
-                    <div className="font-medium text-gray-800 mb-1">💡 Instructions</div>
+                    <div className="font-medium text-gray-800 mb-1">💡 Instructions (Déplaçable)</div>
                     <div className="text-gray-600 space-y-1">
                       <div>• Cliquez et glissez un cours</div>
                       <div>• 🟢 Vert = Position valide</div>
