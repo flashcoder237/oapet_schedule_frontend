@@ -42,7 +42,9 @@ export function FloatingStats({ sessions, conflicts }: FloatingStatsProps) {
     CM: sessions.filter((s: ScheduleSession) => s.session_type === 'CM').length,
     TD: sessions.filter((s: ScheduleSession) => s.session_type === 'TD').length,
     TP: sessions.filter((s: ScheduleSession) => s.session_type === 'TP').length,
+    TPE: sessions.filter((s: ScheduleSession) => s.session_type === 'TPE').length,
     EXAM: sessions.filter((s: ScheduleSession) => s.session_type === 'EXAM').length,
+    CONF: sessions.filter((s: ScheduleSession) => s.session_type === 'CONF').length,
     totalStudents: sessions.reduce((sum: number, s: ScheduleSession) => sum + s.expected_students, 0),
     conflicts: conflicts.length
   };
@@ -72,34 +74,73 @@ export function FloatingStats({ sessions, conflicts }: FloatingStatsProps) {
         </CardHeader>
 
         <CardContent className="p-4">
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div className="text-center p-3 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg">
-              <div className="text-xl font-bold text-blue-600">{stats.total}</div>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="text-center p-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg">
+              <div className="text-lg font-bold text-blue-600">{stats.total}</div>
               <div className="text-xs text-blue-800">Sessions</div>
             </div>
-            <div className="text-center p-3 bg-gradient-to-r from-green-50 to-green-100 rounded-lg">
-              <div className="text-xl font-bold text-green-600">{stats.CM}</div>
-              <div className="text-xs text-green-800">CM</div>
+            <div className="text-center p-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg">
+              <div className="text-lg font-bold text-blue-600">{stats.CM}</div>
+              <div className="text-xs text-blue-800">CM</div>
             </div>
-            <div className="text-center p-3 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg">
-              <div className="text-xl font-bold text-purple-600">{stats.TD}</div>
-              <div className="text-xs text-purple-800">TD</div>
+            <div className="text-center p-2 bg-gradient-to-r from-green-50 to-green-100 rounded-lg">
+              <div className="text-lg font-bold text-green-600">{stats.TD}</div>
+              <div className="text-xs text-green-800">TD</div>
             </div>
-            <div className="text-center p-3 bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg">
-              <div className="text-xl font-bold text-orange-600">{stats.TP}</div>
-              <div className="text-xs text-orange-800">TP</div>
+            <div className="text-center p-2 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg">
+              <div className="text-lg font-bold text-purple-600">{stats.TP}</div>
+              <div className="text-xs text-purple-800">TP</div>
             </div>
-            <div className="text-center p-3 bg-gradient-to-r from-red-50 to-red-100 rounded-lg">
-              <div className="text-xl font-bold text-red-600">{stats.EXAM}</div>
+            <div className="text-center p-2 bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg">
+              <div className="text-lg font-bold text-orange-600">{stats.TPE}</div>
+              <div className="text-xs text-orange-800">TPE</div>
+            </div>
+            <div className="text-center p-2 bg-gradient-to-r from-red-50 to-red-100 rounded-lg">
+              <div className="text-lg font-bold text-red-600">{stats.EXAM}</div>
               <div className="text-xs text-red-800">Examens</div>
             </div>
-            <div className="text-center p-3 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg">
-              <div className="text-xl font-bold text-yellow-600">{stats.conflicts}</div>
-              <div className="text-xs text-yellow-800">Conflits</div>
+            <div className="text-center p-2 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg">
+              <div className="text-lg font-bold text-yellow-600">{stats.CONF}</div>
+              <div className="text-xs text-yellow-800">CONF</div>
+            </div>
+            <div className="text-center p-2 bg-gradient-to-r from-pink-50 to-pink-100 rounded-lg col-span-2">
+              <div className="text-lg font-bold text-pink-600">{stats.conflicts}</div>
+              <div className="text-xs text-pink-800">Conflits</div>
             </div>
           </div>
 
-          <div className="space-y-2 pt-3 border-t border-gray-200">
+          {/* Légende des types de cours */}
+          <div className="pt-3 border-t border-gray-200">
+            <div className="text-xs font-semibold text-gray-700 mb-2">Légende des types</div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                <span className="text-xs text-gray-700">📖 CM - Cours Magistral</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded"></div>
+                <span className="text-xs text-gray-700">✏️ TD - Travaux Dirigés</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-purple-500 rounded"></div>
+                <span className="text-xs text-gray-700">🔬 TP - Travaux Pratiques</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-orange-500 rounded"></div>
+                <span className="text-xs text-gray-700">💡 TPE - Travaux Encadrés</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-500 rounded"></div>
+                <span className="text-xs text-gray-700">📝 EXAM - Examens</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-yellow-500 rounded"></div>
+                <span className="text-xs text-gray-700">🎤 CONF - Conférences</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-3 border-t border-gray-200 mt-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-gray-600" />

@@ -61,7 +61,6 @@ export default function ClassesPage() {
     student_count: 0,
     max_capacity: 50,
     academic_year: '2024-2025',
-    semester: 'S1',
     description: '',
     is_active: true
   })
@@ -208,7 +207,6 @@ export default function ClassesPage() {
       student_count: cls.student_count,
       max_capacity: cls.max_capacity,
       academic_year: cls.academic_year,
-      semester: cls.semester,
       description: '',
       is_active: cls.is_active
     })
@@ -341,7 +339,6 @@ export default function ClassesPage() {
       student_count: 0,
       max_capacity: 50,
       academic_year: '2024-2025',
-      semester: 'S1',
       description: '',
       is_active: true
     })
@@ -824,18 +821,6 @@ export default function ClassesPage() {
                       onChange={(e) => setFormData({ ...formData, max_capacity: parseInt(e.target.value) || 0 })}
                       className="border-primary/20 focus:border-primary"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-foreground">Semestre</label>
-                    <select
-                      value={formData.semester}
-                      onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-                      className="w-full border border-primary/20 rounded-md px-3 py-2 bg-background focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                      <option value="S1">Semestre 1</option>
-                      <option value="S2">Semestre 2</option>
-                    </select>
                   </div>
 
                   <div>

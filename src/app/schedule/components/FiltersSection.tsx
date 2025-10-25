@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import { ScheduleSession } from '@/types/api';
 
-type FilterType = 'all' | 'CM' | 'TD' | 'TP' | 'EXAM';
+type FilterType = 'all' | 'CM' | 'TD' | 'TP' | 'TPE' | 'EXAM' | 'CONF';
 
 interface FiltersSectionProps {
   sessions: ScheduleSession[];
@@ -18,13 +18,13 @@ interface FiltersSectionProps {
   onSearchChange: (term: string) => void;
 }
 
-export function FiltersSection({ 
-  sessions, 
-  filteredSessions, 
+export function FiltersSection({
+  sessions,
+  filteredSessions,
   onFilterChange,
   activeFilter,
   searchTerm,
-  onSearchChange 
+  onSearchChange
 }: FiltersSectionProps) {
   const [filter, setFilter] = useState<FilterType>('all');
 
@@ -33,7 +33,9 @@ export function FiltersSection({
     { value: 'CM', label: 'CM', count: sessions.filter((s: ScheduleSession) => s.session_type === 'CM').length },
     { value: 'TD', label: 'TD', count: sessions.filter((s: ScheduleSession) => s.session_type === 'TD').length },
     { value: 'TP', label: 'TP', count: sessions.filter((s: ScheduleSession) => s.session_type === 'TP').length },
-    { value: 'EXAM', label: 'Examens', count: sessions.filter((s: ScheduleSession) => s.session_type === 'EXAM').length }
+    { value: 'TPE', label: 'TPE', count: sessions.filter((s: ScheduleSession) => s.session_type === 'TPE').length },
+    { value: 'EXAM', label: 'Examens', count: sessions.filter((s: ScheduleSession) => s.session_type === 'EXAM').length },
+    { value: 'CONF', label: 'Conférences', count: sessions.filter((s: ScheduleSession) => s.session_type === 'CONF').length }
   ];
 
   const handleFilterChange = (newFilter: FilterType) => {

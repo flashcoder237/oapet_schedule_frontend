@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Settings, 
-  User, 
-  Bell, 
-  Shield, 
-  Palette, 
+import {
+  Settings,
+  User,
+  Bell,
+  Shield,
+  Palette,
   Database,
   Save,
   RefreshCw,
@@ -22,7 +22,8 @@ import {
   Monitor,
   AlertTriangle,
   CheckCircle,
-  Info
+  Info,
+  BookOpen
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -171,7 +172,7 @@ export default function SettingsPage() {
       )}
 
       <Tabs value={activeSection} onValueChange={setActiveSection} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="w-4 h-4" />
             Profil
@@ -187,6 +188,10 @@ export default function SettingsPage() {
           <TabsTrigger value="appearance" className="flex items-center gap-2">
             <Palette className="w-4 h-4" />
             Apparence
+          </TabsTrigger>
+          <TabsTrigger value="pedagogical" className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4" />
+            Pédagogique
           </TabsTrigger>
           <TabsTrigger value="system" className="flex items-center gap-2">
             <Database className="w-4 h-4" />
@@ -518,6 +523,47 @@ export default function SettingsPage() {
                     {isLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                     Sauvegarder
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        {/* Section Contraintes Pédagogiques */}
+        <TabsContent value="pedagogical" className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="w-5 h-5" />
+                  Contraintes Pédagogiques
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-blue-900">Configuration des règles pédagogiques</h4>
+                      <p className="text-sm text-blue-700 mt-2">
+                        Configurez les contraintes de programmation pour chaque type de cours (CM, TD, TP, TPE).
+                        Ces règles affectent la génération automatique des emplois du temps.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-center py-6">
+                  <a
+                    href="/settings/pedagogical-constraints"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                  >
+                    <BookOpen className="w-5 h-5" />
+                    Ouvrir la page des contraintes pédagogiques
+                  </a>
                 </div>
               </CardContent>
             </Card>

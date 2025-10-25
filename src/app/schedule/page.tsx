@@ -59,7 +59,7 @@ interface StudentClass {
 }
 
 type ScheduleSession = ApiScheduleSession;
-type FilterType = 'all' | 'CM' | 'TD' | 'TP' | 'EXAM';
+type FilterType = 'all' | 'CM' | 'TD' | 'TP' | 'TPE' | 'EXAM' | 'CONF';
 type ViewMode = 'week' | 'day' | 'month';
 type EditMode = 'view' | 'edit' | 'drag';
 
@@ -230,22 +230,21 @@ export default function SchedulePage() {
           setCurrentScheduleId(scheduleId); // Store it for OccurrenceManager
           debugLog('Schedule found for class', selectedClass, 'ID:', scheduleId);
         } catch (error: any) {
-          console.error('No schedule found for class:', selectedClass, error);
-
-          // Afficher une notification à l'utilisateur
+          // Afficher une notification à l'utilisateur (sans console.error)
           const errorMessage = error?.error || error?.message || 'Aucun emploi du temps trouvé';
           const className = error?.student_class?.name || selectedClass;
 
           addToast({
-            title: 'Emploi du temps non trouvé',
-            description: `${errorMessage} pour la classe ${className}`,
+            title: 'Aucun emploi du temps',
+            description: `Aucun emploi du temps n'a été trouvé pour la classe ${className}`,
             variant: 'default'
           });
 
-          // Si pas de schedule, essayer de parser comme ID directement
-          const parsedId = parseInt(selectedClass);
-          scheduleId = isNaN(parsedId) ? undefined : parsedId;
-          setCurrentScheduleId(scheduleId);
+          // Arrêter le chargement et vider les sessions
+          setSessions([]);
+          setFilteredSessions([]);
+          setSessionsLoading(false);
+          return;
         }
 
         if (viewMode === 'week') {

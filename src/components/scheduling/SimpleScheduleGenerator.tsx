@@ -36,7 +36,7 @@ export function SimpleScheduleGenerator({ onScheduleGenerated }: SimpleScheduleG
   const [selectedCurriculum, setSelectedCurriculum] = useState('');
   const [academicYear, setAcademicYear] = useState('2024-2025');
   const [semester, setSemester] = useState('S1');
-  const [startDate, setStartDate] = useState('2024-10-01');
+  const [startDate, setStartDate] = useState('2024-09-25');
   const [endDate, setEndDate] = useState('2025-02-28');
 
   const { addToast } = useToast();
@@ -46,17 +46,17 @@ export function SimpleScheduleGenerator({ onScheduleGenerated }: SimpleScheduleG
     const year = parseInt(academicYear.split('-')[0]);
 
     if (semester === 'S1') {
-      // Semestre 1: Octobre à Février
-      setStartDate(`${year}-10-01`);
+      // Semestre 1: Fin septembre à Fin février
+      setStartDate(`${year}-09-25`);
       setEndDate(`${year + 1}-02-28`);
     } else if (semester === 'S2') {
-      // Semestre 2: Mars à Juillet
+      // Semestre 2: Début mars à Fin août
       setStartDate(`${year + 1}-03-01`);
-      setEndDate(`${year + 1}-07-31`);
+      setEndDate(`${year + 1}-08-31`);
     } else {
-      // Annuel: Octobre à Juillet
-      setStartDate(`${year}-10-01`);
-      setEndDate(`${year + 1}-07-31`);
+      // Annuel: Fin septembre à Fin août
+      setStartDate(`${year}-09-25`);
+      setEndDate(`${year + 1}-08-31`);
     }
   }, [academicYear, semester]);
 
@@ -214,19 +214,19 @@ export function SimpleScheduleGenerator({ onScheduleGenerated }: SimpleScheduleG
               <SelectItem value="S1">
                 <div className="flex flex-col">
                   <span className="font-medium">Semestre 1</span>
-                  <span className="text-xs text-muted-foreground">Octobre à Février</span>
+                  <span className="text-xs text-muted-foreground">Fin Septembre à Février</span>
                 </div>
               </SelectItem>
               <SelectItem value="S2">
                 <div className="flex flex-col">
                   <span className="font-medium">Semestre 2</span>
-                  <span className="text-xs text-muted-foreground">Mars à Juillet</span>
+                  <span className="text-xs text-muted-foreground">Mars à Août</span>
                 </div>
               </SelectItem>
               <SelectItem value="ANNUEL">
                 <div className="flex flex-col">
                   <span className="font-medium">Année Complète</span>
-                  <span className="text-xs text-muted-foreground">Octobre à Juillet</span>
+                  <span className="text-xs text-muted-foreground">Septembre à Août</span>
                 </div>
               </SelectItem>
             </SelectContent>

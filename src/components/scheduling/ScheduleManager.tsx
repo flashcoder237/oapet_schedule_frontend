@@ -32,7 +32,7 @@ export const ScheduleManager: React.FC = () => {
   const [generateParams, setGenerateParams] = useState<GenerateScheduleParams>({
     academic_year: '2024-2025',
     semester: 'S1',
-    start_date: '2024-10-01',
+    start_date: '2024-09-25',
     end_date: '2025-02-28',
     curriculum_ids: [],
   });
@@ -142,17 +142,17 @@ export const ScheduleManager: React.FC = () => {
 
     let start_date, end_date;
     if (semester === 'S1') {
-      // Semestre 1: Octobre à Février
-      start_date = `${year}-10-01`;
+      // Semestre 1: Fin septembre à Fin février
+      start_date = `${year}-09-25`;
       end_date = `${year + 1}-02-28`;
     } else if (semester === 'S2') {
-      // Semestre 2: Mars à Juillet
+      // Semestre 2: Début mars à Fin août
       start_date = `${year + 1}-03-01`;
-      end_date = `${year + 1}-07-31`;
+      end_date = `${year + 1}-08-31`;
     } else {
-      // Annuel: Octobre à Juillet
-      start_date = `${year}-10-01`;
-      end_date = `${year + 1}-07-31`;
+      // Annuel: Fin septembre à Fin août
+      start_date = `${year}-09-25`;
+      end_date = `${year + 1}-08-31`;
     }
 
     setGenerateParams(prev => ({
@@ -223,9 +223,9 @@ export const ScheduleManager: React.FC = () => {
               onChange={(e) => handleSemesterChange(e.target.value)}
               className="w-full px-3 py-2 border rounded"
             >
-              <option value="S1">Semestre 1 (Octobre - Février)</option>
-              <option value="S2">Semestre 2 (Mars - Juillet)</option>
-              <option value="ANNUEL">Annuel (Octobre - Juillet)</option>
+              <option value="S1">Semestre 1 (Fin Septembre - Février)</option>
+              <option value="S2">Semestre 2 (Mars - Août)</option>
+              <option value="ANNUEL">Annuel (Septembre - Août)</option>
             </select>
           </div>
 

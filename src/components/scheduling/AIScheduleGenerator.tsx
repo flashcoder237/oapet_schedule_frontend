@@ -148,17 +148,17 @@ export function AIScheduleGenerator({
     const year = parseInt(academicYear.split('-')[0]);
 
     if (semester === 'S1') {
-      // Semestre 1: Octobre à Février
-      setStartDate(`${year}-10-01`);
+      // Semestre 1: Fin septembre à Fin février
+      setStartDate(`${year}-09-25`);
       setEndDate(`${year + 1}-02-28`);
     } else if (semester === 'S2') {
-      // Semestre 2: Mars à Juillet
+      // Semestre 2: Début mars à Fin août
       setStartDate(`${year + 1}-03-01`);
-      setEndDate(`${year + 1}-07-31`);
+      setEndDate(`${year + 1}-08-31`);
     } else {
-      // Annuel: Octobre à Juillet
-      setStartDate(`${year}-10-01`);
-      setEndDate(`${year + 1}-07-31`);
+      // Annuel: Fin septembre à Fin août
+      setStartDate(`${year}-09-25`);
+      setEndDate(`${year + 1}-08-31`);
     }
   }, [academicYear, semester]);
 
@@ -219,10 +219,44 @@ export function AIScheduleGenerator({
       return;
     }
 
+    // FAILLE 2: Validation des dates
+    if (!startDate || !endDate) {
+      addToast({
+        title: "Erreur",
+        description: "Les dates de début et de fin sont obligatoires",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (start >= end) {
+      addToast({
+        title: "Erreur",
+        description: "La date de début doit être antérieure à la date de fin",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Limite de période maximale (1 an)
+    const maxPeriodDays = 365;
+    const periodDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    if (periodDays > maxPeriodDays) {
+      addToast({
+        title: "Erreur",
+        description: `La période ne peut pas dépasser ${maxPeriodDays} jours (actuellement: ${periodDays} jours)`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsGenerating(true);
 
     try {
-      const data = await apiClient.post<{ message?: string; schedule_ids?: number[]; total_sessions?: number }>('/schedules/schedules/generate_for_period/', {
+      const data = await apiClient.post<{ message?: string; schedule_ids?: number[]; total_sessions?: number; error?: string }>('/schedules/schedules/generate_for_period/', {
         period_type: 'semester',
         academic_year: academicYear,
         semester: semester,
@@ -240,10 +274,18 @@ export function AIScheduleGenerator({
       if (onScheduleGenerated) {
         onScheduleGenerated();
       }
-    } catch (error) {
+    } catch (error: any) {
+      // FAILLE 4: Gestion des erreurs améliorée
+      const errorMessage = error?.response?.data?.error ||
+                          error?.response?.data?.message ||
+                          error?.message ||
+                          "Erreur de communication avec le serveur";
+
+      const errorDetails = error?.response?.data?.details;
+
       addToast({
-        title: "Erreur",
-        description: "Erreur de communication avec le serveur",
+        title: "Erreur de génération",
+        description: errorDetails ? `${errorMessage}\n${errorDetails}` : errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -430,9 +472,9 @@ export function AIScheduleGenerator({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="S1">Semestre 1 (Oct-Fév)</SelectItem>
-                  <SelectItem value="S2">Semestre 2 (Mar-Juil)</SelectItem>
-                  <SelectItem value="ANNUEL">Année Complète (Oct-Juil)</SelectItem>
+                  <SelectItem value="S1">Semestre 1 (Fin Sept-Fév)</SelectItem>
+                  <SelectItem value="S2">Semestre 2 (Mar-Août)</SelectItem>
+                  <SelectItem value="ANNUEL">Année Complète (Sept-Août)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -819,9 +861,9 @@ export function AIScheduleGenerator({
                       <SelectValue placeholder="Sélectionner le semestre" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="S1">Semestre 1 (Oct-Fév)</SelectItem>
-                      <SelectItem value="S2">Semestre 2 (Mar-Juil)</SelectItem>
-                      <SelectItem value="ANNUEL">Année Complète (Oct-Juil)</SelectItem>
+                      <SelectItem value="S1">Semestre 1 (Fin Sept-Fév)</SelectItem>
+                      <SelectItem value="S2">Semestre 2 (Mar-Août)</SelectItem>
+                      <SelectItem value="ANNUEL">Année Complète (Sept-Août)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -919,6 +961,17 @@ export function AIScheduleGenerator({
                 )}
               </Button>
             </div>
+
+        {/* Paramètres avancés - Bouton */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+          className="w-full"
+        >
+          <Settings className="w-4 h-4 mr-2" />
+          {showAdvancedSettings ? 'Masquer' : 'Afficher'} les paramètres avancés
+        </Button>
 
         {/* Paramètres avancés */}
         <AnimatePresence>

@@ -74,15 +74,64 @@ export function SessionCard({
     }
   }, [showMenu]);
 
+  // Détecte le type de cours depuis différentes sources
+  const getCourseType = () => {
+    // 1. Depuis session.session_type
+    if (session.session_type) {
+      return session.session_type.toUpperCase();
+    }
+
+    // 2. Depuis course_details.course_type
+    if ((session as any).course_details?.course_type) {
+      return (session as any).course_details.course_type.toUpperCase();
+    }
+
+    // 3. Depuis le code du cours (ex: MATH-CM, INFO-TD)
+    const courseCode = (session as any).course_details?.code || '';
+    if (courseCode.includes('-CM')) return 'CM';
+    if (courseCode.includes('-TD')) return 'TD';
+    if (courseCode.includes('-TP')) return 'TP';
+    if (courseCode.includes('-TPE')) return 'TPE';
+    if (courseCode.includes('-EXAM')) return 'EXAM';
+    if (courseCode.includes('-CONF')) return 'CONF';
+
+    // 4. Depuis le nom du cours
+    const courseName = (session as any).course_details?.name || '';
+    if (courseName.toLowerCase().includes('magistral') || courseName.toLowerCase().includes(' cm ')) return 'CM';
+    if (courseName.toLowerCase().includes('dirigés') || courseName.toLowerCase().includes(' td ')) return 'TD';
+    if (courseName.toLowerCase().includes('pratiques') || courseName.toLowerCase().includes(' tp ')) return 'TP';
+    if (courseName.toLowerCase().includes('tpe')) return 'TPE';
+    if (courseName.toLowerCase().includes('examen')) return 'EXAM';
+
+    return 'OTHER';
+  };
+
   const getSessionTypeColor = (type: string) => {
     switch (type) {
       case 'CM': return 'bg-blue-100 border-l-4 border-l-blue-500 text-blue-900';
       case 'TD': return 'bg-green-100 border-l-4 border-l-green-500 text-green-900';
       case 'TP': return 'bg-purple-100 border-l-4 border-l-purple-500 text-purple-900';
+      case 'TPE': return 'bg-orange-100 border-l-4 border-l-orange-500 text-orange-900';
       case 'EXAM': return 'bg-red-100 border-l-4 border-l-red-500 text-red-900';
+      case 'CONF': return 'bg-yellow-100 border-l-4 border-l-yellow-500 text-yellow-900';
       default: return 'bg-gray-100 border-l-4 border-l-gray-500 text-gray-900';
     }
   };
+
+  const getSessionTypeBadge = (type: string) => {
+    switch (type) {
+      case 'CM': return { label: 'CM', icon: '', color: 'bg-blue-500' };
+      case 'TD': return { label: 'TD', icon: '', color: 'bg-green-500' };
+      case 'TP': return { label: 'TP', icon: '', color: 'bg-purple-500' };
+      case 'TPE': return { label: 'TPE', icon: '', color: 'bg-orange-500' };
+      case 'EXAM': return { label: 'EXAM', icon: '', color: 'bg-red-500' };
+      case 'CONF': return { label: 'CONF', icon: '', color: 'bg-yellow-500' };
+      default: return { label: 'COURS', icon: '', color: 'bg-gray-500' };
+    }
+  };
+
+  const courseType = getCourseType();
+  const typeBadge = getSessionTypeBadge(courseType);
 
   const getConflictOverlay = () => {
     if (!hasConflict) return '';
@@ -93,7 +142,7 @@ export function SessionCard({
     <div
       className={`
         relative p-2 rounded-lg shadow-sm cursor-pointer w-full h-full border-l-4
-        ${getSessionTypeColor(session.session_type)}
+        ${getSessionTypeColor(courseType)}
         ${getConflictOverlay()}
         ${isDragging ? 'opacity-50 rotate-2 scale-105' : ''}
         ${editMode === 'edit' || editMode === 'drag' ? 'cursor-move hover:shadow-lg hover:scale-102' : ''}
@@ -148,16 +197,24 @@ export function SessionCard({
       )}
 
       <div className="flex flex-col h-full overflow-visible">
-        <div
-          className="font-bold text-sm break-words"
-          title={session.course_details?.code}
-        >
-          {session.course_details?.code}
-          {hasConflict && <span className="text-red-600 ml-1">⚠</span>}
+        <div className="flex items-center justify-between gap-1 mb-1">
+          <div
+            className="font-bold text-sm break-words flex-1"
+            title={session.course_details?.code}
+          >
+            {session.course_details?.code}
+            {hasConflict && <span className="text-red-600 ml-1">⚠</span>}
+          </div>
+          <span
+            className={`text-xs px-1.5 py-0.5 rounded text-white font-semibold ${typeBadge.color} flex-shrink-0`}
+            title={`Type: ${typeBadge.label}`}
+          >
+            {typeBadge.icon} {typeBadge.label}
+          </span>
         </div>
 
         <div
-          className="text-xs opacity-90 break-words mt-1 line-clamp-2"
+          className="text-xs opacity-90 break-words line-clamp-2"
           title={session.course_details?.name}
         >
           {session.course_details?.name}
