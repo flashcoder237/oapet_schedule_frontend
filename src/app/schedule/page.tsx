@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import AnimatedBackground from '@/components/ui/animated-background';
-import { Plus, Settings2, X, Calendar } from 'lucide-react';
+import { BulkActions, CommonBulkActions } from '@/components/ui/BulkActions';
+import { Plus, Settings2, X, Calendar, CheckSquare } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 // Import des composants créés
@@ -112,6 +113,10 @@ export default function SchedulePage() {
   const [showOccurrenceManager, setShowOccurrenceManager] = useState(false);
   const [currentScheduleId, setCurrentScheduleId] = useState<number | undefined>(undefined);
 
+  // États de sélection pour les actions groupées
+  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<number>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+
   const { addToast } = useToast();
 
   // Génération d'une grille très fine (intervalles de 5 minutes) sur horaires réduits
@@ -182,7 +187,7 @@ export default function SchedulePage() {
       const [coursesResponse, teachersResponse, roomsResponse] = await Promise.all([
         courseService.getCourses(),
         courseService.getTeachers(),
-        roomService.getRooms()
+        roomService.getRooms({ page_size: 1000 })
       ]);
 
       setCourses(coursesResponse.results || []);
@@ -558,6 +563,54 @@ export default function SchedulePage() {
     setShowSessionForm(true);
   };
 
+  // Fonctions de sélection pour les actions groupées
+  const toggleSessionSelection = (sessionId: number) => {
+    const newSelection = new Set(selectedSessionIds);
+    if (newSelection.has(sessionId)) {
+      newSelection.delete(sessionId);
+    } else {
+      newSelection.add(sessionId);
+    }
+    setSelectedSessionIds(newSelection);
+  };
+
+  const handleSelectAllSessions = () => {
+    const allIds = new Set(filteredSessions.map(s => s.id).filter((id): id is number => id !== undefined));
+    setSelectedSessionIds(allIds);
+  };
+
+  const handleDeselectAllSessions = () => {
+    setSelectedSessionIds(new Set());
+  };
+
+  // Actions groupées
+  const handleBulkDeleteSessions = async () => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedSessionIds.size} séance(s) ?`)) return;
+
+    try {
+      if (FEATURE_FLAGS.USE_OCCURRENCES_SYSTEM) {
+        await Promise.all(Array.from(selectedSessionIds).map(id => occurrenceService.deleteOccurrence(id)));
+      } else {
+        await Promise.all(Array.from(selectedSessionIds).map(id => scheduleService.deleteScheduleSession(id)));
+      }
+
+      addToast({
+        title: "Succès",
+        description: `${selectedSessionIds.size} séance(s) supprimée(s)`,
+      });
+
+      await loadSessions();
+      setSelectedSessionIds(new Set());
+      setIsSelectionMode(false);
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de la suppression groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Gestion du drag & drop
   const handleSessionDrop = async (day: string, time: string, session: ScheduleSession) => {
     try {
@@ -865,6 +918,21 @@ export default function SchedulePage() {
                   </div>
                 ) : (
                   <>
+                    {/* Actions groupées */}
+                    {selectedSessionIds.size > 0 && canManageSchedules() && (
+                      <div className="mb-4">
+                        <BulkActions
+                          selectedCount={selectedSessionIds.size}
+                          totalCount={filteredSessions.length}
+                          onSelectAll={handleSelectAllSessions}
+                          onDeselectAll={handleDeselectAllSessions}
+                          actions={[
+                            CommonBulkActions.delete(handleBulkDeleteSessions, selectedSessionIds.size)
+                          ]}
+                        />
+                      </div>
+                    )}
+
                     {console.log('PASSING TO GRID:', { sessionsCount: filteredSessions.length, sessions: filteredSessions })}
                     <ScheduleGrid
                       sessions={filteredSessions}
@@ -879,6 +947,9 @@ export default function SchedulePage() {
                       conflicts={backendConflicts}
                       onViewModeChange={setViewMode}
                       onDateChange={setSelectedDate}
+                      isSelectionMode={isSelectionMode}
+                      selectedSessionIds={selectedSessionIds}
+                      onSessionToggleSelect={toggleSessionSelection}
                     />
                   </>
                 )}
@@ -904,6 +975,31 @@ export default function SchedulePage() {
         <AnimatePresence>
           {(editMode === 'edit' || editMode === 'drag') && canManageSchedules() && (
             <>
+              {/* Bouton mode sélection */}
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                className="fixed bottom-48 right-6 z-50"
+              >
+                <Button
+                  onClick={() => {
+                    setIsSelectionMode(!isSelectionMode);
+                    if (isSelectionMode) {
+                      setSelectedSessionIds(new Set());
+                    }
+                  }}
+                  className={`rounded-full w-14 h-14 shadow-lg p-0 mb-4 ${
+                    isSelectionMode
+                      ? 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700'
+                      : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
+                  }`}
+                  title={isSelectionMode ? "Quitter le mode sélection" : "Mode sélection"}
+                >
+                  <CheckSquare className="h-6 w-6 text-white" />
+                </Button>
+              </motion.div>
+
               {/* Bouton d'ajout de session - repositionné */}
               <motion.div
                 initial={{ scale: 0, opacity: 0 }}

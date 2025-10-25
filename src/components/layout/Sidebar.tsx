@@ -12,6 +12,7 @@ import {
   Calendar,
   Users,
   Building,
+  Building2,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -80,6 +81,13 @@ export default function Sidebar() {
       allowTeacher: true // Lecture seule pour enseignants
     },
     {
+      name: 'Bâtiments & Types',
+      href: '/buildings-roomtypes',
+      icon: Building,
+      description: 'Gestion des bâtiments et types de salles',
+      allowTeacher: false
+    },
+    {
       name: 'Utilisateurs',
       href: '/users',
       icon: Users,
@@ -89,7 +97,7 @@ export default function Sidebar() {
     {
       name: 'Départements',
       href: '/departments',
-      icon: Building,
+      icon: Building2,
       description: 'Structure organisationnelle',
       allowTeacher: false
     },

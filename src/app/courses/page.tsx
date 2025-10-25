@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { PageLoading, LoadingSpinner } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/use-toast';
 import { Pagination } from '@/components/ui/pagination';
+import { Checkbox } from '@/components/ui/checkbox';
+import { BulkActions, CommonBulkActions } from '@/components/ui/BulkActions';
 import { courseService } from '@/lib/api/services/courses';
 import CourseModal from '@/components/modals/CourseModal';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +35,9 @@ export default function CoursesPage() {
   // États de pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // États de sélection pour les actions groupées
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const { addToast} = useToast();
   const { canManageSchedules, isTeacher, user } = useAuth();
@@ -134,6 +139,102 @@ export default function CoursesPage() {
       });
     }
   };
+
+  // Fonctions de sélection
+  const toggleSelection = (id: number) => {
+    const newSelection = new Set(selectedIds);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedIds(newSelection);
+  };
+
+  const handleSelectAll = () => {
+    const allIds = new Set(filteredCourses.map(c => c.id).filter((id): id is number => id !== undefined));
+    setSelectedIds(allIds);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  // Actions groupées
+  const handleBulkDelete = async () => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedIds.size} cours ?`)) return;
+
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => courseService.deleteCourse(id)));
+
+      addToast({
+        title: "Succès",
+        description: `${selectedIds.size} cours supprimé(s)`,
+      });
+
+      const coursesData = await courseService.getCourses();
+      setCourses(coursesData.results || []);
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de la suppression groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkActivate = async () => {
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        courseService.updateCourse(id, { is_active: true })
+      ));
+
+      addToast({
+        title: "Succès",
+        description: `${selectedIds.size} cours activé(s)`,
+      });
+
+      const coursesData = await courseService.getCourses();
+      setCourses(coursesData.results || []);
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de l'activation groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        courseService.updateCourse(id, { is_active: false })
+      ));
+
+      addToast({
+        title: "Succès",
+        description: `${selectedIds.size} cours désactivé(s)`,
+      });
+
+      const coursesData = await courseService.getCourses();
+      setCourses(coursesData.results || []);
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de la désactivation groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const bulkActions = [
+    CommonBulkActions.delete(handleBulkDelete, selectedIds.size),
+    CommonBulkActions.activate(handleBulkActivate),
+    CommonBulkActions.deactivate(handleBulkDeactivate),
+  ];
 
   // Filtrage des cours
   const filteredCourses = courses.filter(course => {
@@ -353,6 +454,17 @@ export default function CoursesPage() {
         </CardContent>
       </Card>
 
+      {/* Actions groupées */}
+      {selectedIds.size > 0 && canManageSchedules() && (
+        <BulkActions
+          selectedCount={selectedIds.size}
+          totalCount={filteredCourses.length}
+          onSelectAll={handleSelectAll}
+          onDeselectAll={handleDeselectAll}
+          actions={bulkActions}
+        />
+      )}
+
       {/* Tableau des cours */}
       <Card>
         <CardHeader>
@@ -363,6 +475,20 @@ export default function CoursesPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
+                  {canManageSchedules() && (
+                    <th className="text-left p-4">
+                      <Checkbox
+                        checked={selectedIds.size === filteredCourses.length && filteredCourses.length > 0}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            handleSelectAll();
+                          } else {
+                            handleDeselectAll();
+                          }
+                        }}
+                      />
+                    </th>
+                  )}
                   <th className="text-left p-4 font-semibold">Code</th>
                   <th className="text-left p-4 font-semibold">Nom</th>
                   <th className="text-left p-4 font-semibold">Type</th>
@@ -377,7 +503,7 @@ export default function CoursesPage() {
               <tbody>
                 {paginatedCourses.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center p-8 text-muted-foreground">
+                    <td colSpan={canManageSchedules() ? 10 : 9} className="text-center p-8 text-muted-foreground">
                       Aucun cours trouvé
                     </td>
                   </tr>
@@ -390,6 +516,14 @@ export default function CoursesPage() {
                       transition={{ delay: index * 0.05 }}
                       className="border-b hover:bg-muted/50 transition-colors"
                     >
+                      {canManageSchedules() && (
+                        <td className="p-4">
+                          <Checkbox
+                            checked={course.id !== undefined && selectedIds.has(course.id)}
+                            onCheckedChange={() => course.id && toggleSelection(course.id)}
+                          />
+                        </td>
+                      )}
                       <td className="p-4">
                         <span className="font-mono text-sm font-semibold">
                           {course.code}

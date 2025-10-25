@@ -3,20 +3,26 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Plus, Search, Edit, Trash2, MapPin, Users, Monitor, Building, Zap, Wifi, Volume2, Presentation
+  Plus, Search, Edit, Trash2, MapPin, Users, Monitor, Building2, Zap, Wifi, Volume2, Presentation, Tag
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PageLoading } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/use-toast';
 import { Pagination } from '@/components/ui/pagination';
 import { ImportExportButtons } from '@/components/ui/ImportExportButtons';
+import { BulkActions, CommonBulkActions } from '@/components/ui/BulkActions';
+import { AddBuildingModal } from '@/components/rooms/AddBuildingModal';
+import { AddRoomTypeModal } from '@/components/rooms/AddRoomTypeModal';
+import { roomService as roomServiceNew, Building, RoomType } from '@/services/roomService';
 import { roomService } from '@/lib/api/services/rooms';
 import { courseService } from '@/lib/api/services/courses';
 import type { Room, RoomStats } from '@/types/api';
 import RoomModal from '@/components/modals/RoomModal';
 import { useAuth } from '@/hooks/useAuth';
+import apiClient from '@/lib/api/client';
 
 export default function RoomsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,10 +33,18 @@ export default function RoomsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [stats, setStats] = useState<RoomStats | null>(null);
-  const [buildings, setBuildings] = useState<Array<{ id: string; name: string }>>([]);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [floors, setFloors] = useState<string[]>(['all']);
   const [showOnlyMyRooms, setShowOnlyMyRooms] = useState(false);
   const [teacherRoomIds, setTeacherRoomIds] = useState<Set<number>>(new Set());
+
+  // États de sélection pour les actions groupées
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  // Modals pour création rapide
+  const [showAddBuildingModal, setShowAddBuildingModal] = useState(false);
+  const [showAddRoomTypeModal, setShowAddRoomTypeModal] = useState(false);
 
   // États de pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -45,14 +59,18 @@ export default function RoomsPage() {
       try {
         setIsLoading(true);
 
-        const [roomsData, statsData] = await Promise.all([
-          roomService.getRooms({}),
-          roomService.getRoomStats()
+        const [roomsData, statsData, buildingsData, roomTypesData] = await Promise.all([
+          roomService.getRooms({ page_size: 1000 }),
+          roomService.getRoomStats(),
+          roomServiceNew.getBuildings().catch(() => []),
+          roomServiceNew.getRoomTypes().catch(() => [])
         ]);
 
         const roomsArray = roomsData.results || [];
         setRooms(roomsArray);
         setStats(statsData);
+        setBuildings(buildingsData);
+        setRoomTypes(roomTypesData);
 
         // Si enseignant, charger les cours pour identifier les salles utilisées
         const teacherId = user?.teacher_id;
@@ -79,17 +97,6 @@ export default function RoomsPage() {
           }
         }
 
-        // Extraire les bâtiments uniques
-        const uniqueBuildings = new Set(roomsArray.map(r => r.building?.toString()).filter(Boolean));
-        const buildingsList = [
-          { id: 'all', name: 'Tous les bâtiments' },
-          ...Array.from(uniqueBuildings).map(id => ({
-            id,
-            name: `Bâtiment ${id}`
-          }))
-        ];
-        setBuildings(buildingsList);
-
         // Extraire les étages uniques
         const uniqueFloors = new Set(roomsArray.map(r => r.floor?.toString()).filter(Boolean));
         setFloors(['all', ...Array.from(uniqueFloors).sort()]);
@@ -110,6 +117,97 @@ export default function RoomsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Fonctions de sélection
+  const toggleSelection = (id: number) => {
+    const newSelection = new Set(selectedIds);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedIds(newSelection);
+  };
+
+  const handleSelectAll = () => {
+    const allIds = new Set(filteredRooms.map(r => r.id).filter((id): id is number => id !== undefined));
+    setSelectedIds(allIds);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  // Actions groupées
+  const handleBulkDelete = async () => {
+    try {
+      await roomServiceNew.bulkDeleteRooms(Array.from(selectedIds));
+
+      addToast({
+        title: "Succès",
+        description: `${selectedIds.size} salle(s) supprimée(s)`,
+      });
+
+      // Recharger les données
+      const roomsData = await roomService.getRooms({ page_size: 1000 });
+      setRooms(roomsData.results || []);
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de la suppression groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkActivate = async () => {
+    try {
+      await roomServiceNew.bulkUpdateRooms(Array.from(selectedIds), { is_active: true });
+
+      addToast({
+        title: "Succès",
+        description: `${selectedIds.size} salle(s) activée(s)`,
+      });
+
+      const roomsData = await roomService.getRooms({ page_size: 1000 });
+      setRooms(roomsData.results || []);
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de l'activation groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    try {
+      await roomServiceNew.bulkUpdateRooms(Array.from(selectedIds), { is_active: false });
+
+      addToast({
+        title: "Succès",
+        description: `${selectedIds.size} salle(s) désactivée(s)`,
+      });
+
+      const roomsData = await roomService.getRooms({ page_size: 1000 });
+      setRooms(roomsData.results || []);
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de la désactivation groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const bulkActions = [
+    CommonBulkActions.delete(handleBulkDelete, selectedIds.size),
+    CommonBulkActions.activate(handleBulkActivate),
+    CommonBulkActions.deactivate(handleBulkDeactivate),
+  ];
+
   const handleAddRoom = () => {
     setSelectedRoom(null);
     setShowRoomModal(true);
@@ -123,12 +221,18 @@ export default function RoomsPage() {
   const handleSaveRoom = async (roomData: any) => {
     try {
       if (selectedRoom) {
-        const updatedRoom = await roomService.updateRoom(selectedRoom.id!, roomData);
-        setRooms(prevRooms => prevRooms.map(room => room.id === selectedRoom.id ? updatedRoom : room));
+        await roomServiceNew.updateRoom(selectedRoom.id!, roomData);
       } else {
-        const newRoom = await roomService.createRoom(roomData);
-        setRooms(prevRooms => [...prevRooms, newRoom]);
+        await roomServiceNew.createRoom(roomData);
       }
+      // Invalider le cache et recharger les données
+      apiClient.invalidateCache('/rooms');
+      const [roomsData, statsData] = await Promise.all([
+        roomService.getRooms({ page_size: 1000 }),
+        roomService.getRoomStats(),
+      ]);
+      setRooms(roomsData.results || []);
+      setStats(statsData);
     } catch (error) {
       throw error;
     }
@@ -175,7 +279,7 @@ export default function RoomsPage() {
             room_type: data.room_type || 'classroom',
             building: data.building || '',
             floor: parseInt(data.floor) || 0,
-            is_available: data.is_available === 'true' || data.is_available === '1' || data.is_available === true,
+            is_active: data.is_active === 'true' || data.is_active === '1' || data.is_active === true,
           };
 
           await roomService.createRoom(roomData);
@@ -187,7 +291,7 @@ export default function RoomsPage() {
       }
 
       // Recharger la liste
-      const roomsData = await roomService.getRooms({});
+      const roomsData = await roomService.getRooms({ page_size: 1000 });
       setRooms(roomsData.results || []);
 
       addToast({
@@ -278,6 +382,14 @@ export default function RoomsPage() {
         </div>
         {canManageSchedules() && (
           <div className="flex gap-2">
+            <Button onClick={() => setShowAddBuildingModal(true)} variant="outline" className="gap-2">
+              <Building2 className="w-4 h-4" />
+              Nouveau Bâtiment
+            </Button>
+            <Button onClick={() => setShowAddRoomTypeModal(true)} variant="outline" className="gap-2">
+              <Tag className="w-4 h-4" />
+              Nouveau Type
+            </Button>
             <ImportExportButtons
               data={exportData}
               templateFields={roomTemplateFields}
@@ -298,7 +410,7 @@ export default function RoomsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <Building className="w-6 h-6 text-blue-600" />
+                <Building2 className="w-6 h-6 text-blue-600" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">
@@ -415,9 +527,10 @@ export default function RoomsPage() {
               onChange={(e) => setSelectedBuilding(e.target.value)}
               className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
+              <option value="all">Tous les bâtiments</option>
               {buildings.map(building => (
                 <option key={building.id} value={building.id}>
-                  {building.name}
+                  {building.name} ({building.code})
                 </option>
               ))}
             </select>
@@ -437,6 +550,17 @@ export default function RoomsPage() {
         </CardContent>
       </Card>
 
+      {/* Actions groupées */}
+      {selectedIds.size > 0 && canManageSchedules() && (
+        <BulkActions
+          selectedCount={selectedIds.size}
+          totalCount={filteredRooms.length}
+          onSelectAll={handleSelectAll}
+          onDeselectAll={handleDeselectAll}
+          actions={bulkActions}
+        />
+      )}
+
       {/* Tableau des salles */}
       <Card>
         <CardHeader>
@@ -447,6 +571,20 @@ export default function RoomsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
+                  {canManageSchedules() && (
+                    <th className="text-left p-4">
+                      <Checkbox
+                        checked={selectedIds.size === filteredRooms.length && filteredRooms.length > 0}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            handleSelectAll();
+                          } else {
+                            handleDeselectAll();
+                          }
+                        }}
+                      />
+                    </th>
+                  )}
                   <th className="text-left p-4 font-semibold">Code</th>
                   <th className="text-left p-4 font-semibold">Nom</th>
                   <th className="text-left p-4 font-semibold">Bâtiment</th>
@@ -460,7 +598,7 @@ export default function RoomsPage() {
               <tbody>
                 {paginatedRooms.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center p-8 text-muted-foreground">
+                    <td colSpan={9} className="text-center p-8 text-muted-foreground">
                       Aucune salle trouvée
                     </td>
                   </tr>
@@ -473,6 +611,14 @@ export default function RoomsPage() {
                       transition={{ delay: index * 0.05 }}
                       className="border-b hover:bg-muted/50 transition-colors"
                     >
+                      {canManageSchedules() && (
+                        <td className="p-4">
+                          <Checkbox
+                            checked={room.id !== undefined && selectedIds.has(room.id)}
+                            onCheckedChange={() => room.id && toggleSelection(room.id)}
+                          />
+                        </td>
+                      )}
                       <td className="p-4">
                         <span className="font-mono text-sm font-semibold">
                           {room.code}
@@ -483,8 +629,8 @@ export default function RoomsPage() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
-                          <Building className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm">{room.building}</span>
+                          <Building2 className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm">{room.building || '(Isolé)'}</span>
                         </div>
                       </td>
                       <td className="p-4">
@@ -586,6 +732,36 @@ export default function RoomsPage() {
         onClose={() => setShowRoomModal(false)}
         room={selectedRoom}
         onSave={handleSaveRoom}
+      />
+
+      {/* Modal Nouveau Bâtiment */}
+      <AddBuildingModal
+        open={showAddBuildingModal}
+        onOpenChange={setShowAddBuildingModal}
+        onSubmit={async (data) => {
+          await roomServiceNew.createBuilding(data);
+          const buildingsData = await roomServiceNew.getBuildings();
+          setBuildings(buildingsData);
+          addToast({
+            title: "Succès",
+            description: "Bâtiment créé avec succès",
+          });
+        }}
+      />
+
+      {/* Modal Nouveau Type de Salle */}
+      <AddRoomTypeModal
+        open={showAddRoomTypeModal}
+        onOpenChange={setShowAddRoomTypeModal}
+        onSubmit={async (data) => {
+          await roomServiceNew.createRoomType(data);
+          const typesData = await roomServiceNew.getRoomTypes();
+          setRoomTypes(typesData);
+          addToast({
+            title: "Succès",
+            description: "Type de salle créé avec succès",
+          });
+        }}
       />
     </div>
   );

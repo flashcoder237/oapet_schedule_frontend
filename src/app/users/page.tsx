@@ -9,8 +9,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PageLoading } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/use-toast';
+import { BulkActions, CommonBulkActions } from '@/components/ui/BulkActions';
 import { ImportExportButtons } from '@/components/ui/ImportExportButtons';
 import { userService } from '@/lib/api/services/users';
 import UserModal from '@/components/modals/UserModal';
@@ -44,6 +46,9 @@ export default function UsersPage() {
   const [users, setUsers] = useState<UserType[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // États de sélection pour les actions groupées
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const { addToast } = useToast();
 
@@ -178,6 +183,102 @@ export default function UsersPage() {
     }
   };
 
+  // Fonctions de sélection
+  const toggleSelection = (id: number) => {
+    const newSelection = new Set(selectedIds);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedIds(newSelection);
+  };
+
+  const handleSelectAll = () => {
+    const allIds = new Set(users.map(u => u.id).filter((id): id is number => id !== undefined));
+    setSelectedIds(allIds);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  // Actions groupées
+  const handleBulkDelete = async () => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedIds.size} utilisateur(s) ?`)) return;
+
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => userService.deleteUser(id)));
+
+      addToast({
+        title: "Succès",
+        description: `${selectedIds.size} utilisateur(s) supprimé(s)`,
+      });
+
+      // Recharger la page actuelle
+      setCurrentPage(1);
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de la suppression groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkActivate = async () => {
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        userService.updateUser(id, { is_active: true })
+      ));
+
+      addToast({
+        title: "Succès",
+        description: `${selectedIds.size} utilisateur(s) activé(s)`,
+      });
+
+      // Recharger la page actuelle
+      setCurrentPage(1);
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de l'activation groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        userService.updateUser(id, { is_active: false })
+      ));
+
+      addToast({
+        title: "Succès",
+        description: `${selectedIds.size} utilisateur(s) désactivé(s)`,
+      });
+
+      // Recharger la page actuelle
+      setCurrentPage(1);
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de la désactivation groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const bulkActions = [
+    CommonBulkActions.delete(handleBulkDelete, selectedIds.size),
+    CommonBulkActions.activate(handleBulkActivate),
+    CommonBulkActions.deactivate(handleBulkDeactivate),
+  ];
+
   // Import d'utilisateurs
   const handleImportUsers = async (importedData: any[]) => {
     try {
@@ -186,21 +287,41 @@ export default function UsersPage() {
 
       for (const data of importedData) {
         try {
-          // Valider les données
-          if (!data.username || !data.email) {
+          // Valider les données de base
+          if (!data.username || !data.email || !data.password) {
             errorCount++;
+            console.warn('Import ignoré - champs requis manquants:', data);
             continue;
           }
 
-          const userData: CreateUserData = {
+          const role = data.role || 'student';
+
+          // Validation spécifique pour les enseignants
+          if (role === 'teacher' && (!data.department_id || !data.employee_id)) {
+            errorCount++;
+            console.warn('Import enseignant ignoré - department_id et employee_id requis:', data);
+            continue;
+          }
+
+          // Construire l'objet userData avec tous les champs
+          const userData: any = {
             username: data.username,
             email: data.email,
+            password: data.password,
             first_name: data.first_name || '',
             last_name: data.last_name || '',
-            role: data.role || 'student',
+            role: role,
             is_active: data.is_active === 'true' || data.is_active === '1' || data.is_active === true,
-            password: 'Password123!', // Mot de passe par défaut
           };
+
+          // Ajouter les champs spécifiques aux enseignants si fournis
+          if (role === 'teacher') {
+            if (data.department_id) userData.department_id = parseInt(data.department_id);
+            if (data.employee_id) userData.employee_id = data.employee_id;
+            if (data.phone) userData.phone = data.phone;
+            if (data.office) userData.office = data.office;
+            if (data.max_hours_per_week) userData.max_hours_per_week = parseInt(data.max_hours_per_week);
+          }
 
           await userService.createUser(userData);
           successCount++;
@@ -229,13 +350,24 @@ export default function UsersPage() {
   };
 
   // Définition des champs pour l'import/export
+  // Note: Les champs department_id et employee_id sont REQUIS pour role='teacher'
+  // Les champs student_id, curriculum_id, current_level, entry_year sont pour role='student' (à créer manuellement après)
   const userTemplateFields = [
+    // Champs de base (REQUIS pour tous)
     { key: 'username', label: 'Nom d\'utilisateur', example: 'jdupont' },
     { key: 'email', label: 'Email', example: 'jean.dupont@example.com' },
+    { key: 'password', label: 'Mot de passe', example: 'Password123!' },
     { key: 'first_name', label: 'Prénom', example: 'Jean' },
     { key: 'last_name', label: 'Nom', example: 'Dupont' },
     { key: 'role', label: 'Rôle', example: 'student' },
     { key: 'is_active', label: 'Actif', example: 'true' },
+
+    // Champs spécifiques ENSEIGNANT (requis si role='teacher')
+    { key: 'department_id', label: 'ID Département (teacher)', example: '1' },
+    { key: 'employee_id', label: 'Matricule (teacher)', example: 'PROF001' },
+    { key: 'phone', label: 'Téléphone (teacher)', example: '0612345678' },
+    { key: 'office', label: 'Bureau (teacher)', example: 'B201' },
+    { key: 'max_hours_per_week', label: 'Heures max/semaine (teacher)', example: '20' },
   ];
 
   // Préparer les données pour l'export
@@ -468,6 +600,17 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
+      {/* Actions groupées */}
+      {selectedIds.size > 0 && (
+        <BulkActions
+          selectedCount={selectedIds.size}
+          totalCount={users.length}
+          onSelectAll={handleSelectAll}
+          onDeselectAll={handleDeselectAll}
+          actions={bulkActions}
+        />
+      )}
+
       {/* Tableau des utilisateurs */}
       <Card>
         <CardHeader>
@@ -483,6 +626,18 @@ export default function UsersPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
+                  <th className="text-left p-4">
+                    <Checkbox
+                      checked={selectedIds.size === users.length && users.length > 0}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          handleSelectAll();
+                        } else {
+                          handleDeselectAll();
+                        }
+                      }}
+                    />
+                  </th>
                   <th className="text-left p-4 font-semibold">Nom</th>
                   <th className="text-left p-4 font-semibold">Email</th>
                   <th className="text-left p-4 font-semibold">Nom d'utilisateur</th>
@@ -495,7 +650,7 @@ export default function UsersPage() {
               <tbody>
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center p-8 text-muted-foreground">
+                    <td colSpan={8} className="text-center p-8 text-muted-foreground">
                       Aucun utilisateur trouvé
                     </td>
                   </tr>
@@ -508,6 +663,12 @@ export default function UsersPage() {
                       transition={{ delay: index * 0.05 }}
                       className="border-b hover:bg-muted/50 transition-colors"
                     >
+                      <td className="p-4">
+                        <Checkbox
+                          checked={user.id !== undefined && selectedIds.has(user.id)}
+                          onCheckedChange={() => user.id && toggleSelection(user.id)}
+                        />
+                      </td>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center">

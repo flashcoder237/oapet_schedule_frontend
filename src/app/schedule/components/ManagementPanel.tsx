@@ -104,7 +104,7 @@ export function ManagementPanel({ isOpen, onClose, onDataUpdate, addToast }: Man
       const [coursesRes, teachersRes, roomsRes] = await Promise.all([
         courseService.getCourses(),
         courseService.getTeachers(),
-        roomService.getRooms()
+        roomService.getRooms({ page_size: 1000 })
       ]);
       
       setCourses(coursesRes.results || []);

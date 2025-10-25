@@ -6,6 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { BulkActions, CommonBulkActions } from '@/components/ui/BulkActions';
 import {
   Select,
   SelectContent,
@@ -50,6 +52,10 @@ export default function AdminSchedulesPage() {
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showStats, setShowStats] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+
+  // États de sélection pour les actions groupées
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -194,6 +200,105 @@ export default function AdminSchedulesPage() {
       });
     }
   };
+
+  // Fonctions de sélection
+  const toggleSelection = (id: number) => {
+    const newSelection = new Set(selectedIds);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedIds(newSelection);
+  };
+
+  const handleSelectAll = () => {
+    const allIds = new Set(filteredSchedules.map(s => s.id));
+    setSelectedIds(allIds);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  // Actions groupées
+  const handleBulkDelete = async () => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedIds.size} emploi(s) du temps ?\n\nCette action est irréversible et supprimera toutes les sessions associées.`)) return;
+
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => scheduleService.deleteSchedule(id)));
+
+      addToast({
+        title: 'Succès',
+        description: `${selectedIds.size} emploi(s) du temps supprimé(s)`,
+      });
+
+      await loadData();
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: 'Erreur',
+        description: 'Erreur lors de la suppression groupée',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleBulkPublish = async () => {
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => scheduleService.publishSchedule(id)));
+
+      addToast({
+        title: 'Succès',
+        description: `${selectedIds.size} emploi(s) du temps publié(s)`,
+      });
+
+      await loadData();
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: 'Erreur',
+        description: 'Erreur lors de la publication groupée',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleBulkUnpublish = async () => {
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => scheduleService.unpublishSchedule(id)));
+
+      addToast({
+        title: 'Succès',
+        description: `${selectedIds.size} emploi(s) du temps dépublié(s)`,
+      });
+
+      await loadData();
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: 'Erreur',
+        description: 'Erreur lors de la dépublication groupée',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const bulkActions = [
+    CommonBulkActions.delete(handleBulkDelete, selectedIds.size),
+    {
+      label: 'Publier',
+      icon: <CheckCircle className="w-4 h-4" />,
+      onClick: handleBulkPublish,
+      variant: 'default' as const,
+    },
+    {
+      label: 'Dépublier',
+      icon: <XCircle className="w-4 h-4" />,
+      onClick: handleBulkUnpublish,
+      variant: 'outline' as const,
+    },
+  ];
 
   if (loading) {
     return (
@@ -398,6 +503,17 @@ export default function AdminSchedulesPage() {
           </p>
         </div>
 
+        {/* Actions groupées */}
+        {selectedIds.size > 0 && (
+          <BulkActions
+            selectedCount={selectedIds.size}
+            totalCount={filteredSchedules.length}
+            onSelectAll={handleSelectAll}
+            onDeselectAll={handleDeselectAll}
+            actions={bulkActions}
+          />
+        )}
+
         {/* Liste des emplois du temps - Design amélioré */}
         <div className="space-y-4">
           {filteredSchedules.length === 0 ? (
@@ -445,6 +561,14 @@ export default function AdminSchedulesPage() {
                 <Card className="hover:shadow-xl transition-all duration-300 border-0 shadow-md group overflow-hidden">
                   <CardContent className="p-0">
                     <div className="flex">
+                      {/* Checkbox de sélection */}
+                      <div className="flex items-start p-4">
+                        <Checkbox
+                          checked={selectedIds.has(schedule.id)}
+                          onCheckedChange={() => toggleSelection(schedule.id)}
+                        />
+                      </div>
+
                       {/* Barre latérale colorée */}
                       <div
                         className={`w-2 ${

@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Pagination } from '@/components/ui/pagination'
+import { BulkActions, CommonBulkActions } from '@/components/ui/BulkActions'
 import { Plus, Edit, Trash2, BookOpen, Users, Search, GraduationCap, TrendingUp, Building2, X } from 'lucide-react'
 import { classService } from '@/lib/api/services/classes'
 import { courseService } from '@/lib/api/services/courses'
@@ -38,6 +41,13 @@ export default function ClassesPage() {
   const [showDepartmentModal, setShowDepartmentModal] = useState(false)
   const [editingClass, setEditingClass] = useState<StudentClass | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // États de pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
+  // États de sélection pour les actions groupées
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const [formData, setFormData] = useState({
     code: '',
@@ -129,28 +139,23 @@ export default function ClassesPage() {
 
     try {
       if (editingClass) {
-        const updatedClass = await classService.updateClass(editingClass.id, payload)
-
-        // Update state immediately
-        setClasses(prevClasses =>
-          prevClasses.map(cls => cls.id === editingClass.id ? updatedClass : cls)
-        )
+        await classService.updateClass(editingClass.id, payload)
 
         addToast({
           title: 'Succès',
           description: 'Classe modifiée avec succès',
         })
       } else {
-        const newClass = await classService.createClass(payload)
-
-        // Add new class to state immediately
-        setClasses(prevClasses => [...prevClasses, newClass])
+        await classService.createClass(payload)
 
         addToast({
           title: 'Succès',
           description: 'Classe créée avec succès',
         })
       }
+
+      // Recharger les classes depuis le serveur
+      await fetchClasses()
 
       setShowModal(false)
       resetForm()
@@ -168,10 +173,10 @@ export default function ClassesPage() {
     e.preventDefault()
 
     try {
-      const newDepartment = await courseService.createDepartment(departmentFormData)
+      await courseService.createDepartment(departmentFormData)
 
-      // Add new department to state immediately
-      setDepartments(prevDepartments => [...prevDepartments, newDepartment])
+      // Recharger les départements depuis le serveur
+      await fetchDepartments()
 
       addToast({
         title: 'Succès',
@@ -213,8 +218,8 @@ export default function ClassesPage() {
     try {
       await classService.deleteClass(id)
 
-      // Remove class from state immediately
-      setClasses(prevClasses => prevClasses.filter(cls => cls.id !== id))
+      // Recharger les classes depuis le serveur
+      await fetchClasses()
 
       addToast({
         title: 'Succès',
@@ -229,6 +234,99 @@ export default function ClassesPage() {
       })
     }
   }
+
+  // Fonctions de sélection
+  const toggleSelection = (id: number) => {
+    const newSelection = new Set(selectedIds)
+    if (newSelection.has(id)) {
+      newSelection.delete(id)
+    } else {
+      newSelection.add(id)
+    }
+    setSelectedIds(newSelection)
+  }
+
+  const handleSelectAll = () => {
+    const allIds = new Set(paginatedClasses.map(c => c.id).filter((id): id is number => id !== undefined))
+    setSelectedIds(allIds)
+  }
+
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set())
+  }
+
+  // Actions groupées
+  const handleBulkDelete = async () => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedIds.size} classe(s) ?`)) return
+
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => classService.deleteClass(id)))
+
+      addToast({
+        title: 'Succès',
+        description: `${selectedIds.size} classe(s) supprimée(s)`,
+      })
+
+      await fetchClasses()
+      setSelectedIds(new Set())
+    } catch (error) {
+      addToast({
+        title: 'Erreur',
+        description: 'Erreur lors de la suppression groupée',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleBulkActivate = async () => {
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        classService.updateClass(id, { is_active: true })
+      ))
+
+      addToast({
+        title: 'Succès',
+        description: `${selectedIds.size} classe(s) activée(s)`,
+      })
+
+      await fetchClasses()
+      setSelectedIds(new Set())
+    } catch (error) {
+      addToast({
+        title: 'Erreur',
+        description: 'Erreur lors de l\'activation groupée',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleBulkDeactivate = async () => {
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        classService.updateClass(id, { is_active: false })
+      ))
+
+      addToast({
+        title: 'Succès',
+        description: `${selectedIds.size} classe(s) désactivée(s)`,
+      })
+
+      await fetchClasses()
+      setSelectedIds(new Set())
+    } catch (error) {
+      addToast({
+        title: 'Erreur',
+        description: 'Erreur lors de la désactivation groupée',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const bulkActions = [
+    CommonBulkActions.delete(handleBulkDelete, selectedIds.size),
+    CommonBulkActions.activate(handleBulkActivate),
+    CommonBulkActions.deactivate(handleBulkDeactivate),
+  ]
 
   const resetForm = () => {
     setFormData({
@@ -252,6 +350,17 @@ export default function ClassesPage() {
   const avgOccupancy = classes.length > 0
     ? Math.round(classes.reduce((sum, c) => sum + c.occupancy_rate, 0) / classes.length)
     : 0
+
+  // Pagination
+  const totalPages = Math.ceil(filteredClasses.length / pageSize)
+  const startIndex = (currentPage - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const paginatedClasses = filteredClasses.slice(startIndex, endIndex)
+
+  // Réinitialiser à la page 1 si la recherche change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   if (loading) {
     return (
@@ -410,6 +519,17 @@ export default function ClassesPage() {
         </CardContent>
       </Card>
 
+      {/* Actions groupées */}
+      {selectedIds.size > 0 && (
+        <BulkActions
+          selectedCount={selectedIds.size}
+          totalCount={paginatedClasses.length}
+          onSelectAll={handleSelectAll}
+          onDeselectAll={handleDeselectAll}
+          actions={bulkActions}
+        />
+      )}
+
       {/* Liste des classes */}
       <Card className="border-primary/10 shadow-lg">
         <CardContent className="p-0">
@@ -417,6 +537,18 @@ export default function ClassesPage() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-primary/5 to-purple-500/5 border-b border-primary/10">
                 <tr>
+                  <th className="px-6 py-4 text-left">
+                    <Checkbox
+                      checked={selectedIds.size === paginatedClasses.length && paginatedClasses.length > 0}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          handleSelectAll()
+                        } else {
+                          handleDeselectAll()
+                        }
+                      }}
+                    />
+                  </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-foreground uppercase tracking-wider">Code</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-foreground uppercase tracking-wider">Nom</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-foreground uppercase tracking-wider">Niveau</th>
@@ -427,16 +559,16 @@ export default function ClassesPage() {
                 </tr>
               </thead>
               <tbody className="bg-card divide-y divide-border">
-                {filteredClasses.length === 0 ? (
+                {paginatedClasses.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-16 text-center">
+                    <td colSpan={8} className="px-6 py-16 text-center">
                       <GraduationCap className="mx-auto h-16 w-16 text-muted-foreground/50 mb-4" />
                       <p className="text-lg font-medium text-foreground mb-1">Aucune classe trouvée</p>
                       <p className="text-sm text-muted-foreground">Commencez par créer votre première classe</p>
                     </td>
                   </tr>
                 ) : (
-                  filteredClasses.map((cls, index) => (
+                  paginatedClasses.map((cls, index) => (
                     <motion.tr
                       key={cls.id}
                       initial={{ opacity: 0, x: -20 }}
@@ -444,6 +576,12 @@ export default function ClassesPage() {
                       transition={{ delay: index * 0.05 }}
                       className="hover:bg-primary/5 transition-colors"
                     >
+                      <td className="px-6 py-4">
+                        <Checkbox
+                          checked={cls.id !== undefined && selectedIds.has(cls.id)}
+                          onCheckedChange={() => cls.id && toggleSelection(cls.id)}
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="font-semibold text-foreground">{cls.code}</div>
                       </td>
@@ -522,6 +660,19 @@ export default function ClassesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {filteredClasses.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filteredClasses.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemName="classes"
+        />
+      )}
 
       {/* Modal Classe */}
       <AnimatePresence>

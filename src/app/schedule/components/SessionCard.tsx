@@ -13,7 +13,9 @@ import {
   GripVertical,
   Edit,
   Copy,
-  Trash2
+  Trash2,
+  CheckCircle,
+  Circle
 } from 'lucide-react';
 import { ScheduleSession } from '@/types/api';
 
@@ -29,6 +31,9 @@ interface SessionCardProps {
   onDuplicate: (session: ScheduleSession) => void;
   editMode: EditMode;
   hasConflict?: boolean;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (sessionId: number) => void;
 }
 
 const formatTime = (timeString: string) => {
@@ -45,7 +50,10 @@ export function SessionCard({
   onDelete,
   onDuplicate,
   editMode,
-  hasConflict
+  hasConflict,
+  isSelectionMode = false,
+  isSelected = false,
+  onToggleSelect
 }: SessionCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -99,16 +107,34 @@ export function SessionCard({
         <GripVertical className="absolute left-1 top-1 w-3 h-3 opacity-50" />
       )}
 
+      {/* Checkbox de sélection en mode sélection */}
+      {isSelectionMode && onToggleSelect && (
+        <button
+          className="absolute top-1 left-1 w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm hover:bg-gray-100 transition-colors z-20"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (session.id) onToggleSelect(session.id);
+          }}
+          title={isSelected ? "Désélectionner" : "Sélectionner"}
+        >
+          {isSelected ? (
+            <CheckCircle className="w-5 h-5 text-blue-600 fill-blue-100" />
+          ) : (
+            <Circle className="w-5 h-5 text-gray-400" />
+          )}
+        </button>
+      )}
+
       {/* Indicateur de modification manuelle */}
       {((session as any).is_room_modified || (session as any).is_teacher_modified || (session as any).is_time_modified) && (
         <div
-          className="absolute top-1 left-6 w-2 h-2 bg-orange-500 rounded-full animate-pulse"
+          className={`absolute top-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse ${isSelectionMode ? 'left-8' : 'left-6'}`}
           title="Cette séance a été modifiée manuellement"
         />
       )}
 
       {/* Bouton menu en mode edit */}
-      {editMode === 'edit' && (
+      {editMode === 'edit' && !isSelectionMode && (
         <button
           className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm hover:bg-gray-100 transition-colors z-10"
           onClick={(e) => {

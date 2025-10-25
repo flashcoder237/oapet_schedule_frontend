@@ -8,9 +8,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PageLoading } from '@/components/ui/loading';
 import { useToast } from '@/components/ui/use-toast';
 import { Pagination } from '@/components/ui/pagination';
+import { BulkActions, CommonBulkActions } from '@/components/ui/BulkActions';
 import { ImportExportButtons } from '@/components/ui/ImportExportButtons';
 import { departmentService } from '@/lib/api/services/departments';
 import { teacherService } from '@/lib/api/services/teachers';
@@ -29,6 +31,9 @@ export default function DepartmentsPage() {
   // États de pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // États de sélection pour les actions groupées
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const { addToast } = useToast();
 
@@ -76,17 +81,18 @@ export default function DepartmentsPage() {
   const handleSaveDepartment = async (departmentData: CreateDepartmentData | UpdateDepartmentData) => {
     try {
       if (selectedDepartment) {
-        const updatedDepartment = await departmentService.updateDepartment(
+        await departmentService.updateDepartment(
           selectedDepartment.id!,
           departmentData as UpdateDepartmentData
         );
-        setDepartments(prevDepartments =>
-          prevDepartments.map(dept => dept.id === selectedDepartment.id ? updatedDepartment : dept)
-        );
       } else {
-        const newDepartment = await departmentService.createDepartment(departmentData as CreateDepartmentData);
-        setDepartments(prevDepartments => [...prevDepartments, newDepartment]);
+        await departmentService.createDepartment(departmentData as CreateDepartmentData);
       }
+
+      // Recharger les départements depuis le serveur
+      const departmentsData = await departmentService.getDepartments({});
+      const departmentsArray = departmentsData.results || departmentsData || [];
+      setDepartments(departmentsArray);
     } catch (error) {
       throw error;
     }
@@ -97,7 +103,11 @@ export default function DepartmentsPage() {
 
     try {
       await departmentService.deleteDepartment(departmentId);
-      setDepartments(prevDepartments => prevDepartments.filter(dept => dept.id !== departmentId));
+
+      // Recharger les départements depuis le serveur
+      const departmentsData = await departmentService.getDepartments({});
+      const departmentsArray = departmentsData.results || departmentsData || [];
+      setDepartments(departmentsArray);
 
       addToast({
         title: "Succès",
@@ -111,6 +121,105 @@ export default function DepartmentsPage() {
       });
     }
   };
+
+  // Fonctions de sélection
+  const toggleSelection = (id: number) => {
+    const newSelection = new Set(selectedIds);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedIds(newSelection);
+  };
+
+  const handleSelectAll = () => {
+    const allIds = new Set(filteredDepartments.map(d => d.id).filter((id): id is number => id !== undefined));
+    setSelectedIds(allIds);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  // Actions groupées
+  const handleBulkDelete = async () => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedIds.size} département(s) ?`)) return;
+
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => departmentService.deleteDepartment(id)));
+
+      addToast({
+        title: "Succès",
+        description: `${selectedIds.size} département(s) supprimé(s)`,
+      });
+
+      const departmentsData = await departmentService.getDepartments({});
+      const departmentsArray = departmentsData.results || departmentsData || [];
+      setDepartments(departmentsArray);
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de la suppression groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkActivate = async () => {
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        departmentService.updateDepartment(id, { is_active: true })
+      ));
+
+      addToast({
+        title: "Succès",
+        description: `${selectedIds.size} département(s) activé(s)`,
+      });
+
+      const departmentsData = await departmentService.getDepartments({});
+      const departmentsArray = departmentsData.results || departmentsData || [];
+      setDepartments(departmentsArray);
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de l'activation groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    try {
+      await Promise.all(Array.from(selectedIds).map(id =>
+        departmentService.updateDepartment(id, { is_active: false })
+      ));
+
+      addToast({
+        title: "Succès",
+        description: `${selectedIds.size} département(s) désactivé(s)`,
+      });
+
+      const departmentsData = await departmentService.getDepartments({});
+      const departmentsArray = departmentsData.results || departmentsData || [];
+      setDepartments(departmentsArray);
+      setSelectedIds(new Set());
+    } catch (error) {
+      addToast({
+        title: "Erreur",
+        description: "Erreur lors de la désactivation groupée",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const bulkActions = [
+    CommonBulkActions.delete(handleBulkDelete, selectedIds.size),
+    CommonBulkActions.activate(handleBulkActivate),
+    CommonBulkActions.deactivate(handleBulkDeactivate),
+  ];
 
   // Import de départements
   const handleImportDepartments = async (importedData: any[]) => {
@@ -309,6 +418,17 @@ export default function DepartmentsPage() {
         </CardContent>
       </Card>
 
+      {/* Actions groupées */}
+      {selectedIds.size > 0 && (
+        <BulkActions
+          selectedCount={selectedIds.size}
+          totalCount={filteredDepartments.length}
+          onSelectAll={handleSelectAll}
+          onDeselectAll={handleDeselectAll}
+          actions={bulkActions}
+        />
+      )}
+
       {/* Tableau des départements */}
       <Card>
         <CardHeader>
@@ -319,6 +439,18 @@ export default function DepartmentsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
+                  <th className="text-left p-4">
+                    <Checkbox
+                      checked={selectedIds.size === filteredDepartments.length && filteredDepartments.length > 0}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          handleSelectAll();
+                        } else {
+                          handleDeselectAll();
+                        }
+                      }}
+                    />
+                  </th>
                   <th className="text-left p-4 font-semibold">Code</th>
                   <th className="text-left p-4 font-semibold">Nom</th>
                   <th className="text-left p-4 font-semibold">Description</th>
@@ -332,7 +464,7 @@ export default function DepartmentsPage() {
               <tbody>
                 {paginatedDepartments.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center p-8 text-muted-foreground">
+                    <td colSpan={9} className="text-center p-8 text-muted-foreground">
                       Aucun département trouvé
                     </td>
                   </tr>
@@ -345,6 +477,12 @@ export default function DepartmentsPage() {
                       transition={{ delay: index * 0.05 }}
                       className="border-b hover:bg-muted/50 transition-colors"
                     >
+                      <td className="p-4">
+                        <Checkbox
+                          checked={department.id !== undefined && selectedIds.has(department.id)}
+                          onCheckedChange={() => department.id && toggleSelection(department.id)}
+                        />
+                      </td>
                       <td className="p-4">
                         <span className="font-mono text-sm font-semibold">
                           {department.code}

@@ -18,6 +18,7 @@ export const roomService = {
     has_computer?: boolean;
     is_laboratory?: boolean;
     search?: string;
+    page_size?: number;
   }): Promise<PaginatedResponse<Room>> {
     return apiClient.get<PaginatedResponse<Room>>(API_ENDPOINTS.ROOMS, params);
   },

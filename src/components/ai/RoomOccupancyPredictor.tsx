@@ -53,7 +53,7 @@ export function RoomOccupancyPredictor({
     const fetchRooms = async () => {
       try {
         setLoadingRooms(true);
-        const response = await roomService.getRooms();
+        const response = await roomService.getRooms({ page_size: 1000 });
         setRooms(response.results || []);
       } catch (error) {
         console.error('Erreur lors du chargement des salles:', error);

@@ -29,7 +29,7 @@ export default function AIPage() {
         scheduleService.getSchedules(),
         courseService.getCourses(),
         courseService.getTeachers(),
-        roomService.getRooms()
+        roomService.getRooms({ page_size: 1000 })
       ]);
 
       console.log('Schedules chargés:', schedulesRes.results?.length || 0);

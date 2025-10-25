@@ -21,6 +21,9 @@ interface ScheduleGridProps {
   conflicts: any[];
   onViewModeChange?: (mode: ViewMode) => void;
   onDateChange?: (date: Date) => void;
+  isSelectionMode?: boolean;
+  selectedSessionIds?: Set<number>;
+  onSessionToggleSelect?: (sessionId: number) => void;
 }
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -37,7 +40,10 @@ export function ScheduleGrid({
   onDrop,
   conflicts,
   onViewModeChange,
-  onDateChange
+  onDateChange,
+  isSelectionMode = false,
+  selectedSessionIds = new Set(),
+  onSessionToggleSelect
 }: ScheduleGridProps) {
   
   // États pour le drag & drop avec visualisation en direct
@@ -578,6 +584,9 @@ export function ScheduleGrid({
                         onDuplicate={onSessionDuplicate}
                         editMode={editMode}
                         hasConflict={hasConflict(session) || session.hasVisualConflict}
+                        isSelectionMode={isSelectionMode}
+                        isSelected={session.id !== undefined && selectedSessionIds.has(session.id)}
+                        onToggleSelect={onSessionToggleSelect}
                       />
                       {/* Indicateur de conflit visuel */}
                       {session.hasVisualConflict && (
@@ -748,6 +757,9 @@ export function ScheduleGrid({
                             onDuplicate={onSessionDuplicate}
                             editMode={editMode}
                             hasConflict={hasConflict(session) || session.hasVisualConflict}
+                            isSelectionMode={isSelectionMode}
+                            isSelected={session.id !== undefined && selectedSessionIds.has(session.id)}
+                            onToggleSelect={onSessionToggleSelect}
                           />
                           {/* Indicateur de conflit visuel */}
                           {session.hasVisualConflict && (
