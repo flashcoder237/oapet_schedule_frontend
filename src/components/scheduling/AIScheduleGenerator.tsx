@@ -2,24 +2,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Bot, 
-  Sparkles, 
-  Settings, 
-  Calendar, 
-  Clock, 
-  Users, 
-  BookOpen, 
-  AlertTriangle, 
-  CheckCircle, 
-  RefreshCw, 
+import {
+  Bot,
+  Sparkles,
+  Settings,
+  Calendar,
+  Clock,
+  Users,
+  BookOpen,
+  AlertTriangle,
+  CheckCircle,
+  RefreshCw,
   Save,
   Download,
   Eye,
   Zap,
   Target,
   BarChart3,
-  TrendingUp
+  TrendingUp,
+  Info
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -480,19 +481,34 @@ export function AIScheduleGenerator({
             </div>
           </div>
 
-          {/* Paramètres avancés */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-            className="w-full"
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            {showAdvancedSettings ? 'Masquer' : 'Afficher'} les paramètres avancés
-          </Button>
+          {/* Information sur les contraintes */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold text-blue-900">
+                  Contraintes pédagogiques appliquées
+                </h4>
+                <p className="text-xs text-blue-700">
+                  L'emploi du temps est généré selon les bonnes pratiques pédagogiques:
+                </p>
+                <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                  <li>Maximum 4 cours par jour (8h de cours effectifs)</li>
+                  <li>Pause déjeuner obligatoire de 1h45 (12h15-14h00)</li>
+                  <li>CM le matin (concentration maximale)</li>
+                  <li>TD/TP l'après-midi (meilleure intégration)</li>
+                  <li>Respect des préférences de salle et d'enseignant</li>
+                </ul>
+                <p className="text-xs text-blue-600 font-medium mt-2">
+                  Pour modifier les contraintes, consultez la section "Créneaux Horaires" et "Contraintes"
+                </p>
+              </div>
+            </div>
+          </div>
 
+          {/* Les paramètres avancés ont été retirés - contraintes définies au niveau système */}
           <AnimatePresence>
-            {showAdvancedSettings && (
+            {false && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
@@ -791,16 +807,7 @@ export function AIScheduleGenerator({
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-            >
-              <Settings className="w-4 h-4 mr-1" />
-              {showAdvancedSettings ? 'Masquer' : 'Paramètres'}
-            </Button>
-          </div>
+          {/* Bouton paramètres avancés retiré - contraintes définies au niveau système */}
         </div>
       </CardHeader>
 
@@ -962,20 +969,34 @@ export function AIScheduleGenerator({
               </Button>
             </div>
 
-        {/* Paramètres avancés - Bouton */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-          className="w-full"
-        >
-          <Settings className="w-4 h-4 mr-2" />
-          {showAdvancedSettings ? 'Masquer' : 'Afficher'} les paramètres avancés
-        </Button>
+        {/* Information sur les contraintes */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <h4 className="text-sm font-semibold text-blue-900">
+                Contraintes pédagogiques appliquées
+              </h4>
+              <p className="text-xs text-blue-700">
+                L'emploi du temps est généré selon les bonnes pratiques pédagogiques:
+              </p>
+              <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                <li>Maximum 4 cours par jour (8h de cours effectifs)</li>
+                <li>Pause déjeuner obligatoire de 1h45 (12h15-14h00)</li>
+                <li>CM le matin (concentration maximale)</li>
+                <li>TD/TP l'après-midi (meilleure intégration)</li>
+                <li>Respect des préférences de salle et d'enseignant</li>
+              </ul>
+              <p className="text-xs text-blue-600 font-medium mt-2">
+                Pour modifier les contraintes, consultez la section "Créneaux Horaires" et "Contraintes"
+              </p>
+            </div>
+          </div>
+        </div>
 
-        {/* Paramètres avancés */}
+        {/* Paramètres avancés retirés */}
         <AnimatePresence>
-          {showAdvancedSettings && (
+          {false && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}

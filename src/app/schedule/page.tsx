@@ -805,33 +805,266 @@ export default function SchedulePage() {
   // Gestion de l'export et import
   const handleExport = async () => {
     try {
-      // TODO: Implémenter l'export
+      if (!selectedClass) {
+        addToast({
+          title: "Erreur",
+          description: "Veuillez sélectionner une classe",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (filteredSessions.length === 0) {
+        addToast({
+          title: "Erreur",
+          description: "Aucune session à exporter",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Import dynamique de XLSX
+      const XLSX = await import('xlsx');
+
+      // Transformer les sessions en format tableau
+      const worksheetData = filteredSessions.map(session => ({
+        'Date': session.specific_date || '',
+        'Heure début': session.specific_start_time || '',
+        'Heure fin': session.specific_end_time || '',
+        'Cours': session.course_details?.name || '',
+        'Code': session.course_details?.code || '',
+        'Type': session.session_type || '',
+        'Enseignant': session.teacher_details?.user_details
+          ? `${session.teacher_details.user_details.first_name} ${session.teacher_details.user_details.last_name}`
+          : '',
+        'Salle': session.room_details?.code || '',
+        'Capacité salle': session.room_details?.capacity || '',
+        'Étudiants': session.expected_students || 0,
+        'Notes': session.notes || ''
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+
+      // Ajuster la largeur des colonnes
+      const columnWidths = [
+        { wch: 12 }, // Date
+        { wch: 10 }, // Heure début
+        { wch: 10 }, // Heure fin
+        { wch: 30 }, // Cours
+        { wch: 10 }, // Code
+        { wch: 8 },  // Type
+        { wch: 25 }, // Enseignant
+        { wch: 10 }, // Salle
+        { wch: 12 }, // Capacité
+        { wch: 10 }, // Étudiants
+        { wch: 30 }  // Notes
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Emploi du temps');
+
+      // Télécharger le fichier
+      const fileName = `emploi_temps_${selectedClass}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+
       addToast({
-        title: "Info",
-        description: "Fonctionnalité d'export en cours de développement",
+        title: "Succès",
+        description: `Emploi du temps exporté (${filteredSessions.length} sessions)`,
         variant: "default"
       });
     } catch (error) {
       console.error('Erreur lors de l\'export:', error);
+      addToast({
+        title: "Erreur",
+        description: "Impossible d'exporter l'emploi du temps",
+        variant: "destructive"
+      });
     }
   };
 
-  const handleImport = () => {
-    // TODO: Implémenter l'import
-    addToast({
-      title: "Info",
-      description: "Fonctionnalité d'import en cours de développement",
-      variant: "default"
-    });
+  const handleImport = async () => {
+    try {
+      if (!selectedClass) {
+        addToast({
+          title: "Erreur",
+          description: "Veuillez sélectionner une classe",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Créer un input file invisible
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.xlsx,.xls,.csv';
+
+      input.onchange = async (e: any) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
+        // Import Excel/CSV
+        if (fileExtension === 'xlsx' || fileExtension === 'xls' || fileExtension === 'csv') {
+          try {
+            const XLSX = await import('xlsx');
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+              try {
+                const data = event.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                // Transformer les données en format session
+                const importedSessions = jsonData.map((row: any) => {
+                  // Trouver le cours par nom
+                  const course = courses.find(c => c.name === row['Cours'] || c.code === row['Code']);
+
+                  // Trouver l'enseignant par nom
+                  const teacherName = row['Enseignant'] || '';
+                  const teacher = teachers.find(t =>
+                    teacherName.includes(t.user_details?.last_name || '') ||
+                    teacherName.includes(t.user_details?.first_name || '')
+                  );
+
+                  // Trouver la salle par code
+                  const room = rooms.find(r => r.code === row['Salle']);
+
+                  return {
+                    specific_date: row['Date'],
+                    specific_start_time: row['Heure début'],
+                    specific_end_time: row['Heure fin'],
+                    course: course?.id,
+                    session_type: row['Type'],
+                    teacher: teacher?.id,
+                    room: room?.id,
+                    expected_students: parseInt(row['Étudiants']) || 30,
+                    notes: row['Notes'] || '',
+                    student_class: selectedClass
+                  };
+                });
+
+                // Valider les données
+                const validSessions = importedSessions.filter(s =>
+                  s.specific_date && s.specific_start_time && s.specific_end_time && s.course
+                );
+
+                const invalidCount = importedSessions.length - validSessions.length;
+
+                if (validSessions.length === 0) {
+                  addToast({
+                    title: "Erreur",
+                    description: "Aucune session valide trouvée dans le fichier",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+
+                // Confirmer l'import
+                const confirmMessage = `Importer ${validSessions.length} session(s) ?` +
+                  (invalidCount > 0 ? `\n${invalidCount} session(s) invalide(s) seront ignorée(s).` : '');
+
+                if (!confirm(confirmMessage)) return;
+
+                // Créer les sessions
+                let successCount = 0;
+                let errorCount = 0;
+
+                for (const session of validSessions) {
+                  try {
+                    await scheduleService.createScheduleSession(session);
+                    successCount++;
+                  } catch (error) {
+                    console.error('Erreur import session:', error);
+                    errorCount++;
+                  }
+                }
+
+                addToast({
+                  title: "Import terminé",
+                  description: `${successCount} session(s) importée(s)` +
+                    (errorCount > 0 ? `, ${errorCount} erreur(s)` : ''),
+                  variant: successCount > 0 ? "default" : "destructive"
+                });
+
+                if (successCount > 0) {
+                  await loadSessions();
+                }
+              } catch (error) {
+                console.error('Erreur lors du parsing:', error);
+                addToast({
+                  title: "Erreur",
+                  description: "Impossible de lire le fichier. Vérifiez le format.",
+                  variant: "destructive"
+                });
+              }
+            };
+
+            reader.onerror = () => {
+              addToast({
+                title: "Erreur",
+                description: "Impossible de lire le fichier",
+                variant: "destructive"
+              });
+            };
+
+            reader.readAsBinaryString(file);
+          } catch (error) {
+            console.error('Erreur lors de l\'import:', error);
+            addToast({
+              title: "Erreur",
+              description: "Impossible d'importer le fichier",
+              variant: "destructive"
+            });
+          }
+        } else {
+          addToast({
+            title: "Erreur",
+            description: "Format de fichier non supporté. Utilisez .xlsx, .xls ou .csv",
+            variant: "destructive"
+          });
+        }
+      };
+
+      input.click();
+    } catch (error) {
+      console.error('Erreur lors de l\'import:', error);
+      addToast({
+        title: "Erreur",
+        description: "Impossible d'importer l'emploi du temps",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleSave = async () => {
     try {
-      // TODO: Implémenter la sauvegarde des modifications
+      if (!hasChanges) {
+        addToast({
+          title: "Info",
+          description: "Aucune modification à sauvegarder",
+          variant: "default"
+        });
+        return;
+      }
+
+      // Recharger les données pour synchroniser avec le backend
+      // Les modifications ont déjà été sauvegardées lors des actions individuelles
+      // (handleSessionSave, handleSessionDelete, handleSessionDrop, etc.)
+      // Cette fonction sert principalement à confirmer que tout est synchronisé
+
+      await loadSessions();
+
       setHasChanges(false);
       addToast({
         title: "Succès",
-        description: "Modifications sauvegardées",
+        description: "Modifications synchronisées avec le serveur",
         variant: "default"
       });
     } catch (error) {

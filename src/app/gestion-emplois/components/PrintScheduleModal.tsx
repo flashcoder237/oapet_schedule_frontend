@@ -36,16 +36,28 @@ export function PrintScheduleModal({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen && selectedSchedule) {
-      // Pré-remplir les dates selon la période académique de l'emploi du temps
-      const schedule = schedules.find(s => s.id.toString() === selectedSchedule);
-      if (schedule?.academic_period_details) {
-        const period = schedule.academic_period_details;
-        if (period.start_date) {
-          setDateFrom(period.start_date);
+    if (isOpen) {
+      // Vérifier que le schedule sélectionné existe toujours
+      if (selectedSchedule) {
+        const scheduleStillExists = schedules.find(s => s.id.toString() === selectedSchedule);
+        if (!scheduleStillExists) {
+          // Le schedule n'existe plus, réinitialiser la sélection
+          console.warn(`Schedule ${selectedSchedule} n'existe plus, réinitialisation`);
+          setSelectedSchedule('');
+          setDateFrom('');
+          setDateTo('');
+          return;
         }
-        if (period.end_date) {
-          setDateTo(period.end_date);
+
+        // Pré-remplir les dates selon la période académique de l'emploi du temps
+        if (scheduleStillExists?.academic_period_details) {
+          const period = scheduleStillExists.academic_period_details;
+          if (period.start_date) {
+            setDateFrom(period.start_date);
+          }
+          if (period.end_date) {
+            setDateTo(period.end_date);
+          }
         }
       }
     }
@@ -70,6 +82,14 @@ export function PrintScheduleModal({
 
     try {
       const scheduleId = parseInt(selectedSchedule);
+
+      // Vérifier que le schedule existe dans la liste locale
+      const scheduleExists = schedules.find(s => s.id === scheduleId);
+      if (!scheduleExists) {
+        alert('Cet emploi du temps n\'existe plus. Veuillez rafraîchir la page.');
+        setLoading(false);
+        return;
+      }
 
       // Récupérer les données de l'emploi du temps
       const schedule = await scheduleService.getSchedule(scheduleId);
@@ -134,9 +154,23 @@ export function PrintScheduleModal({
 
       // Générer le contenu à imprimer
       generatePrintContent(schedule, allOccurrences);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur lors de la génération:', error);
-      alert('Impossible de générer l\'emploi du temps. Vérifiez que l\'emploi du temps possède des sessions.');
+
+      // Afficher un message d'erreur plus précis
+      let errorMessage = 'Impossible de générer l\'emploi du temps.';
+
+      if (error?.message?.includes('No Schedule matches')) {
+        errorMessage = 'Cet emploi du temps n\'existe plus dans la base de données. Veuillez rafraîchir la page et en sélectionner un autre.';
+      } else if (error?.message?.includes('Network')) {
+        errorMessage = 'Erreur de connexion au serveur. Vérifiez votre connexion internet.';
+      } else if (allOccurrences.length === 0) {
+        errorMessage = 'Cet emploi du temps ne contient aucune session. Veuillez d\'abord générer des sessions.';
+      } else {
+        errorMessage += ' ' + (error?.message || 'Erreur inconnue');
+      }
+
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }

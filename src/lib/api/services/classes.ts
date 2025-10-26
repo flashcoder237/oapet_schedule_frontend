@@ -15,7 +15,6 @@ export interface StudentClass {
   max_capacity: number;
   occupancy_rate: number;
   academic_year: string;
-  semester: string;
   is_active: boolean;
   courses_count: number;
   created_at: string;
