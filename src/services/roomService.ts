@@ -79,7 +79,7 @@ export interface CreateRoomTypeData {
 export interface CreateRoomData {
   code: string;
   name: string;
-  building: number | null; // null pour les salles isolées
+  building: number | null;
   room_type: number;
   floor: string;
   capacity: number;
@@ -102,19 +102,35 @@ export interface CreateRoomData {
   is_active?: boolean;
 }
 
+// Type helper pour les réponses paginées
+interface PaginatedResponse<T> {
+  results: T[];
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
+}
+
+// Type helper pour les réponses avec data
+interface ApiResponse<T> {
+  data: T;
+}
+
 class RoomService {
   // ==================== BUILDINGS ====================
 
   async getBuildings(): Promise<Building[]> {
     try {
-      const response = await apiClient.get('/rooms/buildings/');
-      // Gérer les deux formats possibles: paginated {results: []} ou array []
-      if (response && Array.isArray(response)) {
-        return response;
+      const response = await apiClient.get('/rooms/buildings/') as unknown;
+      
+      if (Array.isArray(response)) {
+        return response as Building[];
       }
-      if (response && response.results && Array.isArray(response.results)) {
-        return response.results;
+      
+      if (response && typeof response === 'object' && 'results' in response) {
+        const paginatedResponse = response as PaginatedResponse<Building>;
+        return paginatedResponse.results || [];
       }
+      
       return [];
     } catch (error) {
       console.error('Error fetching buildings:', error);
@@ -123,17 +139,17 @@ class RoomService {
   }
 
   async getBuildingById(id: number): Promise<Building> {
-    const response = await apiClient.get(`/rooms/buildings/${id}/`);
+    const response = await apiClient.get(`/rooms/buildings/${id}/`) as ApiResponse<Building>;
     return response.data;
   }
 
   async createBuilding(data: CreateBuildingData): Promise<Building> {
-    const response = await apiClient.post('/rooms/buildings/', data);
+    const response = await apiClient.post('/rooms/buildings/', data) as ApiResponse<Building>;
     return response.data;
   }
 
   async updateBuilding(id: number, data: Partial<CreateBuildingData>): Promise<Building> {
-    const response = await apiClient.patch(`/rooms/buildings/${id}/`, data);
+    const response = await apiClient.patch(`/rooms/buildings/${id}/`, data) as ApiResponse<Building>;
     return response.data;
   }
 
@@ -149,14 +165,17 @@ class RoomService {
 
   async getRoomTypes(): Promise<RoomType[]> {
     try {
-      const response = await apiClient.get('/rooms/room-types/');
-      // Gérer les deux formats possibles: paginated {results: []} ou array []
-      if (response && Array.isArray(response)) {
-        return response;
+      const response = await apiClient.get('/rooms/room-types/') as unknown;
+      
+      if (Array.isArray(response)) {
+        return response as RoomType[];
       }
-      if (response && response.results && Array.isArray(response.results)) {
-        return response.results;
+      
+      if (response && typeof response === 'object' && 'results' in response) {
+        const paginatedResponse = response as PaginatedResponse<RoomType>;
+        return paginatedResponse.results || [];
       }
+      
       return [];
     } catch (error) {
       console.error('Error fetching room types:', error);
@@ -165,17 +184,17 @@ class RoomService {
   }
 
   async getRoomTypeById(id: number): Promise<RoomType> {
-    const response = await apiClient.get(`/rooms/room-types/${id}/`);
+    const response = await apiClient.get(`/rooms/room-types/${id}/`) as ApiResponse<RoomType>;
     return response.data;
   }
 
   async createRoomType(data: CreateRoomTypeData): Promise<RoomType> {
-    const response = await apiClient.post('/rooms/room-types/', data);
+    const response = await apiClient.post('/rooms/room-types/', data) as ApiResponse<RoomType>;
     return response.data;
   }
 
   async updateRoomType(id: number, data: Partial<CreateRoomTypeData>): Promise<RoomType> {
-    const response = await apiClient.patch(`/rooms/room-types/${id}/`, data);
+    const response = await apiClient.patch(`/rooms/room-types/${id}/`, data) as ApiResponse<RoomType>;
     return response.data;
   }
 
@@ -197,14 +216,21 @@ class RoomService {
     page_size?: number;
   }): Promise<Room[]> {
     try {
-      const response = await apiClient.get('/rooms/rooms/', { params });
-      // Gérer les deux formats possibles: paginated {results: []} ou array []
-      if (response.data && Array.isArray(response.data)) {
-        return response.data;
+      const response = await apiClient.get('/rooms/rooms/', { params }) as unknown;
+      
+      if (response && typeof response === 'object' && 'data' in response) {
+        const apiResponse = response as ApiResponse<unknown>;
+        
+        if (Array.isArray(apiResponse.data)) {
+          return apiResponse.data as Room[];
+        }
+        
+        if (apiResponse.data && typeof apiResponse.data === 'object' && 'results' in apiResponse.data) {
+          const paginatedResponse = apiResponse.data as PaginatedResponse<Room>;
+          return paginatedResponse.results || [];
+        }
       }
-      if (response.data && response.data.results && Array.isArray(response.data.results)) {
-        return response.data.results;
-      }
+      
       return [];
     } catch (error) {
       console.error('Error fetching rooms:', error);
@@ -213,17 +239,17 @@ class RoomService {
   }
 
   async getRoomById(id: number): Promise<Room> {
-    const response = await apiClient.get(`/rooms/rooms/${id}/`);
+    const response = await apiClient.get(`/rooms/rooms/${id}/`) as ApiResponse<Room>;
     return response.data;
   }
 
   async createRoom(data: CreateRoomData): Promise<Room> {
-    const response = await apiClient.post('/rooms/rooms/', data);
+    const response = await apiClient.post('/rooms/rooms/', data) as ApiResponse<Room>;
     return response.data;
   }
 
   async updateRoom(id: number, data: Partial<CreateRoomData>): Promise<Room> {
-    const response = await apiClient.patch(`/rooms/rooms/${id}/`, data);
+    const response = await apiClient.patch(`/rooms/rooms/${id}/`, data) as ApiResponse<Room>;
     return response.data;
   }
 

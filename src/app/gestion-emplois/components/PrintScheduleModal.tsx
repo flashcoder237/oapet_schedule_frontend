@@ -80,6 +80,7 @@ export function PrintScheduleModal({
 
     setLoading(true);
 
+    let allOccurrences: any[] = [];
     try {
       const scheduleId = parseInt(selectedSchedule);
 
@@ -99,7 +100,6 @@ export function PrintScheduleModal({
       console.log('Date début:', dateFrom);
       console.log('Date fin:', dateTo);
 
-      let allOccurrences: any[] = [];
 
       if (dateFrom && dateTo) {
         // Parcourir toutes les semaines de la période
@@ -142,7 +142,7 @@ export function PrintScheduleModal({
           }
         }
 
-        console.log(`✅ Total occurrences récupérées : ${allOccurrences.length} (${weekCount} semaines)`);
+        console.log(`✅ Total occurrences récupérées : ${allOccurrences?.length} (${weekCount} semaines)`);
       } else {
         console.warn('Dates non spécifiées, utilisation de la méthode de pagination');
         // Fallback: utiliser la pagination si les dates ne sont pas spécifiées
@@ -164,7 +164,7 @@ export function PrintScheduleModal({
         errorMessage = 'Cet emploi du temps n\'existe plus dans la base de données. Veuillez rafraîchir la page et en sélectionner un autre.';
       } else if (error?.message?.includes('Network')) {
         errorMessage = 'Erreur de connexion au serveur. Vérifiez votre connexion internet.';
-      } else if (allOccurrences.length === 0) {
+      } else if (allOccurrences?.length === 0) {
         errorMessage = 'Cet emploi du temps ne contient aucune session. Veuillez d\'abord générer des sessions.';
       } else {
         errorMessage += ' ' + (error?.message || 'Erreur inconnue');

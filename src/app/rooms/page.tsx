@@ -53,69 +53,70 @@ export default function RoomsPage() {
   const { addToast } = useToast();
   const { canManageSchedules, isTeacher, user } = useAuth();
 
-  // Chargement des données
-  useEffect(() => {
-    const loadData = async () => {
+// Déclarer loadData en dehors du useEffect
+const loadData = async () => {
+  try {
+    setIsLoading(true);
+
+    const [roomsData, statsData, buildingsData, roomTypesData] = await Promise.all([
+      roomService.getRooms({ page_size: 1000 }),
+      roomService.getRoomStats(),
+      roomServiceNew.getBuildings().catch(() => []),
+      roomServiceNew.getRoomTypes().catch(() => [])
+    ]);
+
+    const roomsArray = roomsData.results || [];
+    setRooms(roomsArray);
+    setStats(statsData);
+    setBuildings(buildingsData);
+    setRoomTypes(roomTypesData);
+
+    // Si enseignant, charger les cours pour identifier les salles utilisées
+    const teacherId = user?.teacher_id;
+    const userIsTeacher = isTeacher();
+
+    if (userIsTeacher && teacherId) {
       try {
-        setIsLoading(true);
+        const coursesData = await courseService.getCourses();
+        const teacherCourses = (coursesData.results || []).filter(
+          (course: any) => course.teacher === teacherId
+        );
 
-        const [roomsData, statsData, buildingsData, roomTypesData] = await Promise.all([
-          roomService.getRooms({ page_size: 1000 }),
-          roomService.getRoomStats(),
-          roomServiceNew.getBuildings().catch(() => []),
-          roomServiceNew.getRoomTypes().catch(() => [])
-        ]);
-
-        const roomsArray = roomsData.results || [];
-        setRooms(roomsArray);
-        setStats(statsData);
-        setBuildings(buildingsData);
-        setRoomTypes(roomTypesData);
-
-        // Si enseignant, charger les cours pour identifier les salles utilisées
-        const teacherId = user?.teacher_id;
-        const userIsTeacher = isTeacher();
-
-        if (userIsTeacher && teacherId) {
-          try {
-            const coursesData = await courseService.getCourses();
-            const teacherCourses = (coursesData.results || []).filter(
-              (course: any) => course.teacher === teacherId
-            );
-
-            // Extraire les room IDs des cours de l'enseignant
-            const roomIds = new Set<number>();
-            teacherCourses.forEach((course: any) => {
-              if (course.preferred_room) {
-                roomIds.add(course.preferred_room);
-              }
-            });
-            setTeacherRoomIds(roomIds);
-            console.log(`🧑‍🏫 Enseignant - ${roomIds.size} salles utilisées`);
-          } catch (error) {
-            console.error('Erreur lors du chargement des cours de l\'enseignant:', error);
+        // Extraire les room IDs des cours de l'enseignant
+        const roomIds = new Set<number>();
+        teacherCourses.forEach((course: any) => {
+          if (course.preferred_room) {
+            roomIds.add(course.preferred_room);
           }
-        }
-
-        // Extraire les étages uniques
-        const uniqueFloors = new Set(roomsArray.map(r => r.floor?.toString()).filter(Boolean));
-        setFloors(['all', ...Array.from(uniqueFloors).sort()]);
-
-      } catch (error) {
-        console.error('Erreur lors du chargement des salles:', error);
-        addToast({
-          title: "Erreur",
-          description: "Impossible de charger les salles",
-          variant: "destructive",
         });
-      } finally {
-        setIsLoading(false);
+        setTeacherRoomIds(roomIds);
+        console.log(`🧑‍🏫 Enseignant - ${roomIds.size} salles utilisées`);
+      } catch (error) {
+        console.error('Erreur lors du chargement des cours de l\'enseignant:', error);
       }
-    };
+    }
 
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Extraire les étages uniques
+    const uniqueFloors = new Set(roomsArray.map(r => r.floor?.toString()).filter(Boolean));
+    setFloors(['all', ...Array.from(uniqueFloors).sort()]);
+
+  } catch (error) {
+    console.error('Erreur lors du chargement des salles:', error);
+    addToast({
+      title: "Erreur",
+      description: "Impossible de charger les salles",
+      variant: "destructive",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+// Chargement initial
+useEffect(() => {
+  loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   // Fonctions de sélection
   const toggleSelection = (id: number) => {
@@ -280,7 +281,7 @@ export default function RoomsPage() {
             capacity: parseInt(data.capacity) || 0,
             room_type: data.room_type || 'classroom',
             building: data.building || '',
-            floor: parseInt(data.floor) || 0,
+            floor: String(data.floor || '0'),
             is_active: data.is_active === 'true' || data.is_active === '1' || data.is_active === true,
           };
 

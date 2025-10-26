@@ -334,12 +334,14 @@ export default function AdminSchedulesPage() {
   const bulkActions = [
     CommonBulkActions.delete(handleBulkDelete, selectedIds.size),
     {
+      id: 'publish',
       label: 'Publier',
       icon: <CheckCircle className="w-4 h-4" />,
       onClick: handleBulkPublish,
       variant: 'default' as const,
     },
     {
+      id: 'unpublish',
       label: 'Dépublier',
       icon: <XCircle className="w-4 h-4" />,
       onClick: handleBulkUnpublish,
