@@ -110,9 +110,8 @@ export default function CoursesPage() {
         await courseService.createCourse(courseData);
       }
 
-      // Recharger les cours
-      const coursesData = await courseService.getCourses();
-      setCourses(coursesData.results || []);
+      // Recharger toutes les données (cours, enseignants, départements)
+      await loadData();
 
     } catch (error: any) {
       throw error; // Propager l'erreur pour que le modal la gère
@@ -124,7 +123,9 @@ export default function CoursesPage() {
 
     try {
       await courseService.deleteCourse(courseId);
-      setCourses(courses.filter(c => c.id !== courseId));
+
+      // Recharger toutes les données depuis le serveur
+      await loadData();
 
       addToast({
         title: "Succès",

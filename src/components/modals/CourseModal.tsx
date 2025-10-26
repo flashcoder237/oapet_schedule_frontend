@@ -83,7 +83,7 @@ export default function CourseModal({ isOpen, onClose, course, onSave }: CourseM
     requires_projector: false,
     requires_laboratory: false,
     semester: 'S1',
-    academic_year: '2024-2025',
+    academic_year: '2025-2026',
     is_active: true,
     use_manual_priority: false,
     manual_scheduling_priority: 3
@@ -200,7 +200,7 @@ export default function CourseModal({ isOpen, onClose, course, onSave }: CourseM
         requires_projector: false,
         requires_laboratory: false,
         semester: 'S1',
-        academic_year: '2024-2025',
+        academic_year: '2025-2026',
         is_active: true
       });
     }
@@ -1010,7 +1010,7 @@ export default function CourseModal({ isOpen, onClose, course, onSave }: CourseM
             value={formData.academic_year}
             onChange={(e) => handleInputChange('academic_year', e.target.value)}
             className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground placeholder:text-muted-foreground"
-            placeholder="2024-2025"
+            placeholder="2025-2026"
           />
         </div>
       </div>

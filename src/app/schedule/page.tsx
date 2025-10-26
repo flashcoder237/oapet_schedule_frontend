@@ -159,7 +159,15 @@ export default function SchedulePage() {
         data = await classService.getClasses();
         console.log('📚 Total des classes:', data.length);
       }
-      setStudentClasses(Array.isArray(data) ? data : []);
+      const classesArray = Array.isArray(data) ? data : [];
+      setStudentClasses(classesArray);
+
+      // Sélectionner automatiquement la première classe par défaut
+      if (classesArray.length > 0 && !selectedClass) {
+        const firstClassId = classesArray[0].id.toString();
+        setSelectedClass(firstClassId);
+        console.log('✅ Première classe sélectionnée automatiquement:', classesArray[0].name);
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des classes:', error);
       addToast({

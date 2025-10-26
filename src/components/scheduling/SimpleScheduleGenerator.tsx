@@ -34,7 +34,7 @@ export function SimpleScheduleGenerator({ onScheduleGenerated }: SimpleScheduleG
 
   // États du formulaire
   const [selectedCurriculum, setSelectedCurriculum] = useState('');
-  const [academicYear, setAcademicYear] = useState('2024-2025');
+  const [academicYear, setAcademicYear] = useState('2025-2026');
   const [semester, setSemester] = useState('S1');
   const [startDate, setStartDate] = useState('2024-09-25');
   const [endDate, setEndDate] = useState('2025-02-28');

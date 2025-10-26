@@ -30,7 +30,7 @@ export const ScheduleManager: React.FC = () => {
 
   // Paramètres de génération
   const [generateParams, setGenerateParams] = useState<GenerateScheduleParams>({
-    academic_year: '2024-2025',
+    academic_year: '2025-2026',
     semester: 'S1',
     start_date: '2024-09-25',
     end_date: '2025-02-28',
@@ -211,7 +211,7 @@ export const ScheduleManager: React.FC = () => {
               value={generateParams.academic_year}
               onChange={(e) => setGenerateParams(prev => ({ ...prev, academic_year: e.target.value }))}
               className="w-full px-3 py-2 border rounded"
-              placeholder="2024-2025"
+              placeholder="2025-2026"
             />
           </div>
 

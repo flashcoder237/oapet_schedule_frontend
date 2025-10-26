@@ -107,7 +107,7 @@ export function AIScheduleGenerator({
 
   // États pour la génération par période
   const [periodType, setPeriodType] = useState<'semester' | 'year' | 'custom'>('semester');
-  const [academicYear, setAcademicYear] = useState('2024-2025');
+  const [academicYear, setAcademicYear] = useState('2025-2026');
   const [semester, setSemester] = useState('S1');
   const [startDate, setStartDate] = useState('2024-10-01');
   const [endDate, setEndDate] = useState('2025-02-28');
@@ -456,9 +456,9 @@ export function AIScheduleGenerator({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="2024-2025">2024-2025</SelectItem>
                   <SelectItem value="2025-2026">2025-2026</SelectItem>
                   <SelectItem value="2026-2027">2026-2027</SelectItem>
+                  <SelectItem value="2027-2028">2027-2028</SelectItem>
                 </SelectContent>
               </Select>
             </div>

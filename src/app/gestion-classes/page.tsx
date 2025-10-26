@@ -60,7 +60,7 @@ export default function ClassesPage() {
     curriculum: '',
     student_count: 0,
     max_capacity: 50,
-    academic_year: '2024-2025',
+    academic_year: '2025-2026',
     description: '',
     is_active: true
   })
@@ -338,7 +338,7 @@ export default function ClassesPage() {
       curriculum: '',
       student_count: 0,
       max_capacity: 50,
-      academic_year: '2024-2025',
+      academic_year: '2025-2026',
       description: '',
       is_active: true
     })
@@ -407,7 +407,7 @@ export default function ClassesPage() {
               { key: 'section', label: 'Section', example: 'A' },
               { key: 'department', label: 'Département (ID)', example: '1' },
               { key: 'curriculum', label: 'Programme (ID)', example: '1' },
-              { key: 'academic_year', label: 'Année académique', example: '2024-2025' },
+              { key: 'academic_year', label: 'Année académique', example: '2025-2026' },
               { key: 'student_count', label: 'Nombre d\'étudiants', example: '45' },
               { key: 'max_capacity', label: 'Capacité maximale', example: '50' }
             ]}
