@@ -51,7 +51,7 @@ export interface Course {
   teacher: number;
   teacher_name?: string;
   course_type: 'CM' | 'TD' | 'TP' | 'CONF' | 'EXAM';
-  level: 'L1' | 'L2' | 'L3' | 'M1' | 'M2';
+  level: 'L1' | 'L2' | 'L3' | 'M1' | 'M2'| 'D1' | 'D2'| 'D3';
   credits: number;
   hours_per_week: number;
   total_hours: number;

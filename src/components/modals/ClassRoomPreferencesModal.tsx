@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Save, AlertCircle } from 'lucide-react';
 import { classRoomPreferenceService, type ClassRoomPreference, type AvailableRoom } from '@/lib/api/services/classRoomPreferences';
+import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface ClassRoomPreferencesModalProps {
   isOpen: boolean;
@@ -23,11 +26,13 @@ export default function ClassRoomPreferencesModal({
   className,
   onSave,
 }: ClassRoomPreferencesModalProps) {
+  const { addToast } = useToast();
   const [preferences, setPreferences] = useState<ClassRoomPreference[]>([]);
   const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Formulaire d'ajout
   const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
@@ -41,9 +46,11 @@ export default function ClassRoomPreferencesModal({
     }
   }, [isOpen, classId]);
 
-  const loadPreferences = async () => {
+  const loadPreferences = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const data = await classRoomPreferenceService.getByClass(classId);
       setPreferences(data.preferences);
       setError(null);
@@ -51,7 +58,9 @@ export default function ClassRoomPreferencesModal({
       setError(err.message || 'Erreur lors du chargement des préférences');
       console.error('Error loading preferences:', err);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -67,6 +76,11 @@ export default function ClassRoomPreferencesModal({
   const handleAdd = async () => {
     if (!selectedRoom) {
       setError('Veuillez sélectionner une salle');
+      addToast({
+        title: "Erreur",
+        description: "Veuillez sélectionner une salle",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -86,13 +100,29 @@ export default function ClassRoomPreferencesModal({
       setSelectedPriority(2);
       setNotes('');
 
-      // Recharger les données
-      await loadPreferences();
-      await loadAvailableRooms();
+      // Recharger les données - force un rafraîchissement complet sans loading
+      await Promise.all([
+        loadPreferences(false),
+        loadAvailableRooms()
+      ]);
+
+      // Forcer le re-rendu de la liste
+      setRefreshKey(prev => prev + 1);
+
+      addToast({
+        title: "Succès",
+        description: "Préférence de salle ajoutée avec succès",
+      });
 
       if (onSave) onSave();
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de l\'ajout de la préférence');
+      const errorMessage = err.message || 'Erreur lors de l\'ajout de la préférence';
+      setError(errorMessage);
+      addToast({
+        title: "Erreur",
+        description: errorMessage,
+        variant: "destructive",
+      });
       console.error('Error adding preference:', err);
     } finally {
       setSaving(false);
@@ -110,13 +140,29 @@ export default function ClassRoomPreferencesModal({
 
       await classRoomPreferenceService.delete(id);
 
-      // Recharger les données
-      await loadPreferences();
-      await loadAvailableRooms();
+      // Recharger les données - force un rafraîchissement complet sans loading
+      await Promise.all([
+        loadPreferences(false),
+        loadAvailableRooms()
+      ]);
+
+      // Forcer le re-rendu de la liste
+      setRefreshKey(prev => prev + 1);
+
+      addToast({
+        title: "Succès",
+        description: "Préférence de salle supprimée avec succès",
+      });
 
       if (onSave) onSave();
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de la suppression de la préférence');
+      const errorMessage = err.message || 'Erreur lors de la suppression de la préférence';
+      setError(errorMessage);
+      addToast({
+        title: "Erreur",
+        description: errorMessage,
+        variant: "destructive",
+      });
       console.error('Error deleting preference:', err);
     } finally {
       setSaving(false);
@@ -162,69 +208,71 @@ export default function ClassRoomPreferencesModal({
           )}
 
           {/* Formulaire d'ajout */}
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <h3 className="font-semibold text-gray-900 mb-4">Ajouter une préférence</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Salle
-                </label>
-                <select
-                  value={selectedRoom || ''}
-                  onChange={(e) => setSelectedRoom(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={saving}
-                >
-                  <option value="">Sélectionner une salle</option>
-                  {availableRooms.map(room => (
-                    <option key={room.id} value={room.id}>
-                      {room.code} - {room.name} (Cap: {room.capacity})
-                      {room.building && ` - ${room.building}`}
-                    </option>
-                  ))}
-                </select>
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="font-semibold text-gray-900 mb-4">Ajouter une préférence</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Salle
+                  </label>
+                  <select
+                    value={selectedRoom || ''}
+                    onChange={(e) => setSelectedRoom(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={saving}
+                  >
+                    <option value="">Sélectionner une salle</option>
+                    {availableRooms.map(room => (
+                      <option key={room.id} value={room.id}>
+                        {room.code} - {room.name} (Cap: {room.capacity})
+                        {room.building && ` - ${room.building}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Priorité
+                  </label>
+                  <select
+                    value={selectedPriority}
+                    onChange={(e) => setSelectedPriority(Number(e.target.value) as 1 | 2 | 3)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={saving}
+                  >
+                    {PRIORITY_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Notes (optionnel)
+                  </label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Raisons de cette préférence..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={2}
+                    disabled={saving}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Priorité
-                </label>
-                <select
-                  value={selectedPriority}
-                  onChange={(e) => setSelectedPriority(Number(e.target.value) as 1 | 2 | 3)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={saving}
-                >
-                  {PRIORITY_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Notes (optionnel)
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Raisons de cette préférence..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={2}
-                  disabled={saving}
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={handleAdd}
-              disabled={!selectedRoom || saving}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              {saving ? 'Ajout...' : 'Ajouter'}
-            </button>
-          </div>
+              <Button
+                onClick={handleAdd}
+                disabled={!selectedRoom || saving}
+                className="mt-4"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {saving ? 'Ajout...' : 'Ajouter'}
+              </Button>
+            </CardContent>
+          </Card>
 
           {/* Liste des préférences */}
           {loading ? (
@@ -233,7 +281,7 @@ export default function ClassRoomPreferencesModal({
               <p className="mt-4 text-gray-600">Chargement...</p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div key={refreshKey} className="space-y-6">
               {/* Obligatoires */}
               {groupedPreferences.obligatoire.length > 0 && (
                 <div>
@@ -305,12 +353,12 @@ export default function ClassRoomPreferencesModal({
 
         {/* Footer */}
         <div className="border-t p-6 flex justify-end gap-3">
-          <button
+          <Button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            variant="outline"
           >
             Fermer
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -364,14 +412,16 @@ function PreferenceCard({ preference, onDelete, disabled }: PreferenceCardProps)
           )}
         </div>
 
-        <button
+        <Button
           onClick={() => onDelete(preference.id)}
           disabled={disabled}
-          className="text-red-600 hover:text-red-800 p-2 hover:bg-red-100 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          variant="ghost"
+          size="sm"
+          className="text-red-600 hover:text-red-800 hover:bg-red-100"
           title="Supprimer"
         >
           <Trash2 className="w-5 h-5" />
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -274,6 +274,7 @@ export default function DepartmentsPage() {
 
   // Définition des champs pour l'import/export
   const departmentTemplateFields = [
+    { key: 'id', label: 'ID', example: '1' },
     { key: 'code', label: 'Code', example: 'INFO' },
     { key: 'name', label: 'Nom', example: 'Département Informatique' },
     { key: 'description', label: 'Description', example: 'Département spécialisé en informatique' },
@@ -283,6 +284,7 @@ export default function DepartmentsPage() {
 
   // Préparer les données pour l'export avec les bons champs
   const exportData = departments.map(dept => ({
+    id: dept.id || '',
     code: dept.code || '',
     name: dept.name || '',
     description: dept.description || '',

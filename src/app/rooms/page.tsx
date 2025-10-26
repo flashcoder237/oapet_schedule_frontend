@@ -243,7 +243,9 @@ export default function RoomsPage() {
 
     try {
       await roomService.deleteRoom(roomId);
-      setRooms(prevRooms => prevRooms.filter(room => room.id !== roomId));
+
+      // Recharger toutes les données depuis le serveur
+      await loadData();
 
       addToast({
         title: "Succès",
@@ -311,6 +313,7 @@ export default function RoomsPage() {
 
   // Définition des champs pour l'import/export
   const roomTemplateFields = [
+    { key: 'id', label: 'ID', example: '1' },
     { key: 'code', label: 'Code', example: 'A101' },
     { key: 'name', label: 'Nom', example: 'Salle A101' },
     { key: 'capacity', label: 'Capacité', example: '30' },
@@ -322,6 +325,7 @@ export default function RoomsPage() {
 
   // Préparer les données pour l'export
   const exportData = rooms.map(room => ({
+    id: room.id || '',
     code: room.code || '',
     name: room.name || '',
     capacity: room.capacity || '',

@@ -215,7 +215,9 @@ export function ScheduleEditModal({
                     <SelectItem value="L3">Licence 3</SelectItem>
                     <SelectItem value="M1">Master 1</SelectItem>
                     <SelectItem value="M2">Master 2</SelectItem>
-                    <SelectItem value="D">Doctorat</SelectItem>
+                    <SelectItem value="D">Doctorat 1</SelectItem>
+                    <SelectItem value="D">Doctorat 2</SelectItem>
+                    <SelectItem value="D">Doctorat 3</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

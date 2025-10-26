@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Plus, Search, Edit, Trash2, BookOpen, User, Clock,
-  Users, Calendar, Building, Download, Upload, Filter
+  Plus, Search, Edit, Trash2, BookOpen, User as UserIcon, Clock,
+  Users, Calendar, Building, Download, Upload, Filter, Loader2,
+  FileSpreadsheet, Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,10 +15,13 @@ import { Pagination } from '@/components/ui/pagination';
 import { Checkbox } from '@/components/ui/checkbox';
 import { BulkActions, CommonBulkActions } from '@/components/ui/BulkActions';
 import { courseService } from '@/lib/api/services/courses';
+import { departmentService } from '@/lib/api/services/departments';
+import { userService } from '@/lib/api/services/users';
 import CourseModal from '@/components/modals/CourseModal';
 import { Badge } from '@/components/ui/badge';
-import type { Course, CourseStats } from '@/types/api';
+import type { Course, CourseStats, Department } from '@/types/api';
 import { useAuth } from '@/hooks/useAuth';
+import { ImportExport } from '@/components/ui/ImportExport';
 
 export default function CoursesPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,30 +46,104 @@ export default function CoursesPage() {
   const { addToast} = useToast();
   const { canManageSchedules, isTeacher, user } = useAuth();
 
+  // Template classique pour cours individuels (CM, TD, TP séparés)
+  const courseTemplateFieldsClassic = [
+    { key: 'id', label: 'ID', example: '1' },
+    { key: 'code', label: 'Code', example: 'INF101_CM' },
+    { key: 'name', label: 'Nom du Cours', example: 'Introduction à la Programmation (CM)' },
+    { key: 'description', label: 'Description', example: 'Cours magistral d\'introduction' },
+    { key: 'department_name', label: 'Département', example: 'Informatique' },
+    { key: 'teacher_employee_id', label: 'ID Employé Enseignant', example: 'EMP001' },
+    { key: 'teacher_email', label: 'Email Enseignant (alternatif)', example: 'prof@exemple.com' },
+    { key: 'course_type', label: 'Type de Cours', example: 'CM (CM, TD, TP, TPE, CONF, EXAM)' },
+    { key: 'level', label: 'Niveau', example: 'L1 (L1, L2, L3, M1, M2)' },
+    { key: 'credits', label: 'Crédits', example: '6' },
+    { key: 'hours_per_week', label: 'Heures par Semaine', example: '3' },
+    { key: 'total_hours', label: 'Heures Totales', example: '42' },
+    { key: 'max_students', label: 'Max Étudiants', example: '40' },
+    { key: 'min_room_capacity', label: 'Capacité Min Salle', example: '40' },
+    { key: 'requires_computer', label: 'Nécessite Ordinateur', example: 'true' },
+    { key: 'requires_projector', label: 'Nécessite Projecteur', example: 'true' },
+    { key: 'requires_laboratory', label: 'Nécessite Laboratoire', example: 'false' },
+    { key: 'semester', label: 'Semestre', example: 'S1' },
+    { key: 'academic_year', label: 'Année Académique', example: '2024-2025' },
+    { key: 'is_active', label: 'Actif', example: 'true' },
+  ];
+
+  // Template pour génération automatique (crée CM, TD, TP, TPE automatiquement)
+  const courseTemplateFieldsAutoGenerate = [
+    { key: 'code', label: 'Code de Base', example: 'INF101' },
+    { key: 'name', label: 'Nom du Cours de Base', example: 'Introduction à la Programmation' },
+    { key: 'description', label: 'Description', example: 'Cours d\'introduction aux concepts de base' },
+    { key: 'department_name', label: 'Département', example: 'Informatique' },
+    { key: 'teacher_employee_id', label: 'ID Employé Enseignant', example: 'EMP001' },
+    { key: 'teacher_email', label: 'Email Enseignant (alternatif)', example: 'prof@exemple.com' },
+    { key: 'level', label: 'Niveau', example: 'L1 (L1, L2, L3, M1, M2)' },
+    { key: 'credits', label: 'Crédits', example: '6' },
+    { key: 'cm_percentage', label: '% CM', example: '40' },
+    { key: 'td_percentage', label: '% TD', example: '30' },
+    { key: 'tp_percentage', label: '% TP', example: '20' },
+    { key: 'tpe_percentage', label: '% TPE', example: '10' },
+    { key: 'credit_hours', label: 'Heures par Crédit', example: '15' },
+    { key: 'max_students', label: 'Max Étudiants', example: '40' },
+    { key: 'min_room_capacity', label: 'Capacité Min Salle', example: '40' },
+    { key: 'requires_computer', label: 'Nécessite Ordinateur', example: 'true' },
+    { key: 'requires_projector', label: 'Nécessite Projecteur', example: 'true' },
+    { key: 'requires_laboratory', label: 'Nécessite Laboratoire', example: 'false' },
+    { key: 'semester', label: 'Semestre', example: 'S1' },
+    { key: 'academic_year', label: 'Année Académique', example: '2024-2025' },
+    { key: 'is_active', label: 'Actif', example: 'true' },
+  ];
+
+  // Fonction pour préparer les données d'export avec noms lisibles
+  const prepareExportData = () => {
+    return courses.map(course => ({
+      id: course.id || '',
+      code: course.code || '',
+      name: course.name || '',
+      description: course.description || '',
+      department_name: course.department_name || '',
+      teacher_employee_id: '', // À remplir si disponible dans les détails teacher
+      teacher_email: '', // À remplir si disponible dans les détails teacher
+      course_type: course.course_type || '',
+      level: course.level || '',
+      credits: course.credits || '',
+      hours_per_week: course.hours_per_week || '',
+      total_hours: course.total_hours || '',
+      max_students: course.max_students || '',
+      min_room_capacity: course.min_room_capacity || '',
+      requires_computer: course.requires_computer ? 'true' : 'false',
+      requires_projector: course.requires_projector ? 'true' : 'false',
+      requires_laboratory: course.requires_laboratory ? 'true' : 'false',
+      semester: course.semester || '',
+      academic_year: course.academic_year || '',
+      is_active: course.is_active ? 'true' : 'false',
+    }));
+  };
+
   // Chargement des données
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
 
-        const [coursesData, statsData, departmentsData] = await Promise.all([
-          courseService.getCourses(),
-          courseService.getCoursesStats(),
-          courseService.getDepartments()
-        ]);
+      const [coursesData, statsData, departmentsData] = await Promise.all([
+        courseService.getCourses(),
+        courseService.getCoursesStats(),
+        courseService.getDepartments()
+      ]);
 
-        const coursesArray = coursesData.results || [];
-        setCourses(coursesArray);
-        setStats(statsData);
+      const coursesArray = coursesData.results || [];
+      setCourses(coursesArray);
+      setStats(statsData);
 
-        // Extraire les départements réels
-        const deptResults = departmentsData.results || departmentsData || [];
-        const deptMap = new Map(deptResults.map((d: any) => [d.id, d.name]));
+      // Extraire les départements réels
+      const deptResults = departmentsData.results || departmentsData || [];
+      const deptMap = new Map(deptResults.map((d: any) => [d.id, d.name]));
 
-        // Créer une liste de départements avec nom
-        const uniqueDeptIds = new Set(coursesArray.map(c => c.department).filter(Boolean));
-        const deptList = [
-          { id: 'all', name: 'Tous les départements' },
+      // Créer une liste de départements avec nom
+      const uniqueDeptIds = new Set(coursesArray.map(c => c.department).filter(Boolean));
+      const deptList = [
+        { id: 'all', name: 'Tous les départements' },
           ...Array.from(uniqueDeptIds).map(id => ({
             id,
             name: deptMap.get(id) || `Département ${id}`
@@ -73,24 +151,25 @@ export default function CoursesPage() {
         ];
         setDepartments(deptList);
 
-        // Extraire les niveaux réels
-        const uniqueLevels = new Set(coursesArray.map(c => c.level).filter(Boolean));
-        setLevels(['all', ...Array.from(uniqueLevels).sort()]);
+      // Extraire les niveaux réels
+      const uniqueLevels = new Set(coursesArray.map(c => c.level).filter(Boolean));
+      setLevels(['all', ...Array.from(uniqueLevels).sort()]);
 
-      } catch (error) {
-        console.error('Erreur lors du chargement des cours:', error);
-        addToast({
-          title: "Erreur",
-          description: "Impossible de charger les cours",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    } catch (error) {
+      console.error('Erreur lors du chargement des cours:', error);
+      addToast({
+        title: "Erreur",
+        description: "Impossible de charger les cours",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadData();
-  }, [addToast]);
+  }, []);
 
   const handleAddCourse = () => {
     setSelectedCourse(null);
@@ -323,10 +402,19 @@ export default function CoursesPage() {
           </p>
         </div>
         {canManageSchedules() && (
-          <Button onClick={handleAddCourse} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Nouveau Cours
-          </Button>
+          <div className="flex gap-2">
+            {/* Import/Export avec 2 templates différents */}
+            <CourseImportExport
+              onImportSuccess={loadData}
+              templateFieldsClassic={courseTemplateFieldsClassic}
+              templateFieldsAutoGenerate={courseTemplateFieldsAutoGenerate}
+              courses={courses}
+            />
+            <Button onClick={handleAddCourse} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Nouveau Cours
+            </Button>
+          </div>
         )}
       </div>
 
@@ -366,7 +454,7 @@ export default function CoursesPage() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                <User className="w-6 h-6 text-purple-600" />
+                <UserIcon className="w-6 h-6 text-purple-600" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">
@@ -624,5 +712,255 @@ export default function CoursesPage() {
         onSave={handleSaveCourse}
       />
     </div>
+  );
+}
+
+// Composant personnalisé pour l'import/export de cours avec 2 templates
+function CourseImportExport({
+  onImportSuccess,
+  templateFieldsClassic,
+  templateFieldsAutoGenerate,
+  courses
+}: {
+  onImportSuccess: () => void;
+  templateFieldsClassic: Array<{ key: string; label: string; example: string }>;
+  templateFieldsAutoGenerate: Array<{ key: string; label: string; example: string }>;
+  courses: any[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { addToast } = useToast();
+
+  const handleImport = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Détecter le format du fichier
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      if (extension) {
+        formData.append('format', extension === 'xlsx' ? 'excel' : extension);
+      }
+
+      const token = localStorage.getItem('auth_token');
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/courses/courses/import_data/`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          ...(token ? { 'Authorization': `Token ${token}` } : {})
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Import failed');
+      }
+
+      addToast({
+        title: "Import réussi",
+        description: data.message || `${data.created_count + data.updated_count || 0} cours importé(s)`,
+      });
+
+      onImportSuccess();
+    } catch (error: any) {
+      console.error('Import error:', error);
+      addToast({
+        title: "Erreur d'import",
+        description: error.message || "Impossible d'importer les données",
+        variant: "destructive"
+      });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDownloadTemplate = (type: 'classic' | 'autogenerate', format: string) => {
+    const fields = type === 'classic' ? templateFieldsClassic : templateFieldsAutoGenerate;
+    const fileName = type === 'classic' ? 'template_cours_classique' : 'template_cours_auto_generation';
+
+    if (format === 'excel') {
+      import('@/lib/utils/excelExport').then(({ generateExcelTemplate }) => {
+        generateExcelTemplate(fields, fileName);
+        addToast({
+          title: "Template téléchargé",
+          description: `Template ${type === 'classic' ? 'classique' : 'auto-génération'} téléchargé`,
+        });
+      });
+    }
+  };
+
+  const handleExport = async (format: string) => {
+    setIsExporting(true);
+
+    try {
+      const exportData = courses.map(course => ({
+        id: course.id || '',
+        code: course.code || '',
+        name: course.name || '',
+        description: course.description || '',
+        department_name: course.department_name || '',
+        course_type: course.course_type || '',
+        level: course.level || '',
+        credits: course.credits || '',
+        hours_per_week: course.hours_per_week || '',
+        total_hours: course.total_hours || '',
+        max_students: course.max_students || '',
+        min_room_capacity: course.min_room_capacity || '',
+        requires_computer: course.requires_computer ? 'true' : 'false',
+        requires_projector: course.requires_projector ? 'true' : 'false',
+        requires_laboratory: course.requires_laboratory ? 'true' : 'false',
+        semester: course.semester || '',
+        academic_year: course.academic_year || '',
+        is_active: course.is_active ? 'true' : 'false',
+      }));
+
+      const filename = `cours_${new Date().toISOString().split('T')[0]}`;
+
+      if (format === 'excel') {
+        const { exportToExcel } = await import('@/lib/utils/excelExport');
+        exportToExcel(exportData, filename, 'Cours');
+      }
+
+      addToast({
+        title: "Export réussi",
+        description: `${exportData.length} cours exporté(s)`,
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      addToast({
+        title: "Erreur d'export",
+        description: "Impossible d'exporter les données",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,.xls,.csv"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      <div className="relative">
+        <Button
+          variant="outline"
+          size="default"
+          onClick={() => setIsOpen(!isOpen)}
+          disabled={isImporting || isExporting}
+        >
+          {isImporting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Import...
+            </>
+          ) : isExporting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Export...
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4 mr-2" />
+              Import/Export
+            </>
+          )}
+        </Button>
+
+        {isOpen && (
+          <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+            <div className="p-4 space-y-4">
+              {/* Section Import */}
+              <div>
+                <h4 className="font-semibold text-sm mb-2">Importer des cours</h4>
+                <Button
+                  onClick={handleImport}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  disabled={isImporting}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Choisir un fichier
+                </Button>
+              </div>
+
+              {/* Section Export */}
+              <div className="border-t pt-4">
+                <h4 className="font-semibold text-sm mb-2">Exporter les cours actuels</h4>
+                <Button
+                  onClick={() => handleExport('excel')}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  disabled={isExporting}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Exporter en Excel
+                </Button>
+              </div>
+
+              {/* Section Templates */}
+              <div className="border-t pt-4">
+                <h4 className="font-semibold text-sm mb-2">Télécharger les templates</h4>
+
+                <div className="space-y-2">
+                  <Button
+                    onClick={() => handleDownloadTemplate('classic', 'excel')}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Template Classique (CM, TD, TP séparés)
+                  </Button>
+
+                  <Button
+                    onClick={() => handleDownloadTemplate('autogenerate', 'excel')}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Template Auto-Génération (CM/TD/TP/TPE auto)
+                  </Button>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => setIsOpen(false)}
+                variant="ghost"
+                size="sm"
+                className="w-full"
+              >
+                Fermer
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

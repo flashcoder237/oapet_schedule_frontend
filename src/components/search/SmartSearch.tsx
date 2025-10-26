@@ -422,6 +422,9 @@ export default function SmartSearch({
                       <option value="L3">L3</option>
                       <option value="M1">M1</option>
                       <option value="M2">M2</option>
+                      <option value="D1">D1</option>
+                      <option value="D2">D2</option>
+                      <option value="D3">D3</option>
                     </select>
                   </div>
                   

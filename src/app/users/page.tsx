@@ -353,6 +353,9 @@ export default function UsersPage() {
   // Note: Les champs department_id et employee_id sont REQUIS pour role='teacher'
   // Les champs student_id, curriculum_id, current_level, entry_year sont pour role='student' (à créer manuellement après)
   const userTemplateFields = [
+    // ID (important pour les mises à jour)
+    { key: 'id', label: 'ID', example: '1' },
+
     // Champs de base (REQUIS pour tous)
     { key: 'username', label: 'Nom d\'utilisateur', example: 'jdupont' },
     { key: 'email', label: 'Email', example: 'jean.dupont@example.com' },
@@ -372,6 +375,7 @@ export default function UsersPage() {
 
   // Préparer les données pour l'export
   const exportData = users.map(user => ({
+    id: user.id || '',
     username: user.username || '',
     email: user.email || '',
     first_name: user.first_name || '',

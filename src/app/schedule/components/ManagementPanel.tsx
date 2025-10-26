@@ -37,7 +37,7 @@ interface CourseFormData {
   name: string;
   description: string;
   credits: number;
-  level: 'L1' | 'L2' | 'L3' | 'M1' | 'M2';
+  level: 'L1' | 'L2' | 'L3' | 'M1' | 'M2' | 'D1' | 'D2' | 'D3';
   course_type: 'CM' | 'TD' | 'TP' | 'CONF' | 'EXAM';
   department: number | string;
 }
