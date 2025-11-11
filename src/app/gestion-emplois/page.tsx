@@ -31,6 +31,17 @@ import {
   MoreHorizontal,
   Printer,
   Sparkles,
+  BarChart3,
+  Star,
+  TrendingUp,
+  DoorOpen,
+  Users,
+  Clock,
+  BookOpen,
+  Building2,
+  GraduationCap,
+  Scale,
+  Lightbulb,
 } from 'lucide-react';
 import { scheduleService } from '@/lib/api/services/schedules';
 import { Schedule, AcademicPeriod } from '@/types/api';
@@ -57,6 +68,9 @@ export default function AdminSchedulesPage() {
   const [showBlockagesModal, setShowBlockagesModal] = useState(false);
   const [generationResult, setGenerationResult] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showQualityModal, setShowQualityModal] = useState(false);
+  const [qualityData, setQualityData] = useState<any>(null);
+  const [evaluatingQuality, setEvaluatingQuality] = useState(false);
 
   // États de sélection pour les actions groupées
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -203,6 +217,30 @@ export default function AdminSchedulesPage() {
         description: error.response?.data?.message || 'Impossible de mettre à jour l\'emploi du temps',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleEvaluateQuality = async (schedule: Schedule) => {
+    setEvaluatingQuality(true);
+    try {
+      const result = await scheduleService.evaluateQuality(schedule.id);
+      setQualityData(result);
+      setShowQualityModal(true);
+
+      addToast({
+        title: 'Évaluation Terminée',
+        description: `Score: ${result.global_score.toFixed(0)} - Note: ${result.grade}`,
+        variant: result.is_valid ? 'default' : 'destructive',
+      });
+    } catch (error: any) {
+      console.error('Erreur lors de l\'évaluation:', error);
+      addToast({
+        title: 'Erreur',
+        description: 'Impossible d\'évaluer la qualité de l\'emploi du temps',
+        variant: 'destructive',
+      });
+    } finally {
+      setEvaluatingQuality(false);
     }
   };
 
@@ -742,6 +780,15 @@ export default function AdminSchedulesPage() {
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => handleEvaluateQuality(schedule)}
+                              className="hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 transition-all"
+                              title="Évaluer la qualité"
+                            >
+                              <BarChart3 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleView(schedule)}
                               className="hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all"
                               title="Voir l'emploi du temps"
@@ -835,6 +882,255 @@ export default function AdminSchedulesPage() {
           stats={generationResult.stats}
         />
       )}
+
+      {/* Modal d'évaluation de qualité */}
+      <AnimatePresence>
+        {qualityData && showQualityModal && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              onClick={() => setShowQualityModal(false)}
+            />
+
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl max-h-[85vh] overflow-hidden z-50"
+            >
+              <Card className="bg-white shadow-xl border overflow-hidden">
+                {/* En-tête simple */}
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-4 text-white">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <BarChart3 className="h-5 w-5" />
+                      <div>
+                        <h2 className="text-lg font-semibold">Évaluation de Qualité</h2>
+                        <p className="text-white/80 text-xs mt-0.5">{qualityData.schedule_name}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowQualityModal(false)}
+                      className="text-white hover:bg-white/20 h-8 w-8 p-0"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Contenu scrollable */}
+                <div className="overflow-y-auto max-h-[calc(85vh-140px)] p-5">
+                  {/* Score Global avec Note */}
+                  <div className="grid grid-cols-2 gap-4 mb-5">
+                    {/* Score numérique */}
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingUp className="h-4 w-4 text-blue-600" />
+                        <p className="text-xs font-semibold text-gray-700 uppercase">Score Global</p>
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <p className="text-3xl font-bold text-blue-600">
+                          {qualityData.global_score.toFixed(0)}
+                        </p>
+                        <p className="text-lg text-gray-500">/1000</p>
+                      </div>
+                      <div className="mt-3">
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            style={{ width: `${(qualityData.global_score / 1000) * 100}%` }}
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              qualityData.global_score > 800 ? 'bg-green-500' :
+                              qualityData.global_score > 600 ? 'bg-blue-500' :
+                              qualityData.global_score > 400 ? 'bg-yellow-500' :
+                              'bg-red-500'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Note avec étoiles */}
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 flex flex-col items-center justify-center">
+                      <p className="text-xs font-semibold text-gray-600 uppercase mb-2">Note</p>
+                      <div className={`text-4xl font-black ${
+                        qualityData.grade === 'A' ? 'text-green-600' :
+                        qualityData.grade === 'B' ? 'text-blue-600' :
+                        qualityData.grade === 'C' ? 'text-yellow-600' :
+                        qualityData.grade === 'D' ? 'text-orange-600' : 'text-red-600'
+                      }`}>
+                        {qualityData.grade}
+                      </div>
+                      <div className="flex items-center gap-0.5 mt-2">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-4 w-4 ${
+                              i < (qualityData.grade === 'A' ? 5 : qualityData.grade === 'B' ? 4 : qualityData.grade === 'C' ? 3 : qualityData.grade === 'D' ? 2 : 1)
+                                ? 'fill-yellow-400 text-yellow-400'
+                                : 'fill-gray-300 text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contraintes Dures */}
+                  {qualityData.report.hard_constraints.total > 0 && (
+                    <div className="mb-4">
+                      <div className="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-4">
+                        <h3 className="text-sm font-bold text-red-900 mb-3 flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
+                          Violations Critiques ({qualityData.report.hard_constraints.total})
+                        </h3>
+                        <div className="grid grid-cols-3 gap-3">
+                          {qualityData.report.hard_constraints.room_conflicts > 0 && (
+                            <div className="bg-white rounded-lg p-3 border border-red-200">
+                              <div className="flex items-center gap-2 mb-1">
+                                <DoorOpen className="h-3 w-3 text-red-600" />
+                                <p className="text-xs text-red-700 font-semibold">Salles</p>
+                              </div>
+                              <p className="text-xl font-bold text-red-900">{qualityData.report.hard_constraints.room_conflicts}</p>
+                            </div>
+                          )}
+                          {qualityData.report.hard_constraints.teacher_conflicts > 0 && (
+                            <div className="bg-white rounded-lg p-3 border border-red-200">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Users className="h-3 w-3 text-red-600" />
+                                <p className="text-xs text-red-700 font-semibold">Enseignants</p>
+                              </div>
+                              <p className="text-xl font-bold text-red-900">{qualityData.report.hard_constraints.teacher_conflicts}</p>
+                            </div>
+                          )}
+                          {qualityData.report.hard_constraints.missing_course_hours > 0 && (
+                            <div className="bg-white rounded-lg p-3 border border-red-200">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Clock className="h-3 w-3 text-red-600" />
+                                <p className="text-xs text-red-700 font-semibold">Heures</p>
+                              </div>
+                              <p className="text-xl font-bold text-red-900">{qualityData.report.hard_constraints.missing_course_hours}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Scores par Critère */}
+                  <div className="mb-4">
+                    <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-blue-600" />
+                      Scores Détaillés
+                    </h3>
+                    <div className="grid grid-cols-1 gap-3">
+                      {Object.entries(qualityData.report.soft_scores).map(([key, value]: [string, any]) => {
+                        const labels: Record<string, string> = {
+                          pedagogical_quality: 'Qualité Pédagogique',
+                          teacher_satisfaction: 'Satisfaction Enseignants',
+                          room_utilization: 'Utilisation des Salles',
+                          student_load_balance: 'Équilibre Charge Étudiants',
+                          teacher_load_balance: 'Équilibre Charge Enseignants',
+                        };
+                        const icons: Record<string, any> = {
+                          pedagogical_quality: BookOpen,
+                          teacher_satisfaction: Users,
+                          room_utilization: Building2,
+                          student_load_balance: GraduationCap,
+                          teacher_load_balance: Scale,
+                        };
+                        const Icon = icons[key];
+                        const percentage = Math.max(0, Math.min(100, value));
+                        return (
+                          <div
+                            key={key}
+                            className="bg-gray-50 rounded-lg p-3 border border-gray-200"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4 text-gray-600" />
+                                <span className="text-xs font-semibold text-gray-700">{labels[key]}</span>
+                              </div>
+                              <span className="text-sm font-bold text-gray-900">{value.toFixed(0)}</span>
+                            </div>
+                            <div className="relative w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                              <div
+                                style={{ width: `${percentage}%` }}
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  percentage >= 80 ? 'bg-green-500' :
+                                  percentage >= 60 ? 'bg-blue-500' :
+                                  percentage >= 40 ? 'bg-yellow-500' :
+                                  'bg-red-500'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Recommandations */}
+                  {qualityData.recommendations && qualityData.recommendations.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                        <Lightbulb className="h-4 w-4 text-yellow-600" />
+                        Recommandations
+                      </h3>
+                      <div className="space-y-2">
+                        {qualityData.recommendations.map((rec: any, index: number) => (
+                          <div
+                            key={index}
+                            className={`rounded-lg p-3 border-l-4 ${
+                              rec.severity === 'critical'
+                                ? 'bg-red-50 border-red-500'
+                                : rec.severity === 'warning'
+                                ? 'bg-yellow-50 border-yellow-500'
+                                : 'bg-blue-50 border-blue-500'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              {rec.severity === 'critical' ? (
+                                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                              ) : rec.severity === 'warning' ? (
+                                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                              ) : (
+                                <CheckCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                              )}
+                              <div className="flex-1">
+                                <p className="text-xs font-semibold text-gray-900 mb-0.5">{rec.message}</p>
+                                <p className="text-xs text-gray-600">{rec.action}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer avec boutons */}
+                <div className="border-t border-gray-200 px-5 py-3 bg-gray-50 flex justify-end">
+                  <Button
+                    onClick={() => setShowQualityModal(false)}
+                    className="bg-blue-600 text-white hover:bg-blue-700"
+                    size="sm"
+                  >
+                    Fermer
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -128,6 +128,40 @@ export const scheduleService = {
     return apiClient.post(`${API_ENDPOINTS.SCHEDULES}${id}/detect_conflicts/`);
   },
 
+  /**
+   * Évalue la qualité d'un emploi du temps
+   */
+  async evaluateQuality(id: number): Promise<{
+    schedule_id: number;
+    schedule_name: string;
+    global_score: number;
+    is_valid: boolean;
+    grade: string;
+    report: {
+      hard_constraints: {
+        room_conflicts: number;
+        teacher_conflicts: number;
+        missing_course_hours: number;
+        total: number;
+      };
+      soft_scores: {
+        pedagogical_quality: number;
+        teacher_satisfaction: number;
+        room_utilization: number;
+        student_load_balance: number;
+        teacher_load_balance: number;
+      };
+      weights: Record<string, number>;
+    };
+    recommendations: Array<{
+      severity: 'critical' | 'warning' | 'info';
+      message: string;
+      action: string;
+    }>;
+  }> {
+    return apiClient.get(`${API_ENDPOINTS.SCHEDULES}${id}/evaluate_quality/`);
+  },
+
   // Sessions d'emploi du temps
   async getScheduleSessions(params?: {
     schedule?: number;
