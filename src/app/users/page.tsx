@@ -49,6 +49,7 @@ export default function UsersPage() {
 
   // États de sélection pour les actions groupées
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const { addToast } = useToast();
 
@@ -115,7 +116,7 @@ export default function UsersPage() {
     };
 
     loadData();
-  }, [currentPage, pageSize, searchTerm, selectedRole, selectedStatus]);
+  }, [currentPage, pageSize, searchTerm, selectedRole, selectedStatus, refreshTrigger]);
 
   const handleAddUser = () => {
     setSelectedUser(null);
@@ -238,9 +239,9 @@ export default function UsersPage() {
         description: `${selectedIds.size} utilisateur(s) activé(s)`,
       });
 
-      // Recharger la page actuelle
-      setCurrentPage(1);
+      // Forcer le rechargement des données
       setSelectedIds(new Set());
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       addToast({
         title: "Erreur",
@@ -261,9 +262,9 @@ export default function UsersPage() {
         description: `${selectedIds.size} utilisateur(s) désactivé(s)`,
       });
 
-      // Recharger la page actuelle
-      setCurrentPage(1);
+      // Forcer le rechargement des données
       setSelectedIds(new Set());
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       addToast({
         title: "Erreur",

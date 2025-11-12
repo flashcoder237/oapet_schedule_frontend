@@ -19,10 +19,14 @@ import {
   Search,
   X,
   CheckCircle2,
-  User
+  User,
+  Upload,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react'
 import { classService } from '@/lib/api/services/classes'
 import type { ClassCourse, Course, StudentClass } from '@/lib/api/services/classes'
+import * as XLSX from 'xlsx'
 
 export default function ClassCoursesPage() {
   const params = useParams()
@@ -164,6 +168,251 @@ export default function ClassCoursesPage() {
     setSelectedCourses([])
   }
 
+  // Export des liaisons classe-cours vers Excel
+  const handleExport = () => {
+    if (!studentClass || classCourses.length === 0) {
+      addToast({
+        title: 'Attention',
+        description: 'Aucune liaison cours-classe à exporter',
+        variant: 'default'
+      })
+      return
+    }
+
+    // Préparer les données pour l'export avec TOUTES les informations de liaison
+    const exportData = classCourses.map((cc, index) => ({
+      'N°': index + 1,
+      'Code Cours': cc.course_code || cc.course_details?.code || '',
+      'Nom du Cours': cc.course_name || cc.course_details?.name || '',
+      'Type': cc.course_type || cc.course_details?.course_type || '',
+      'Enseignant': cc.teacher_name || cc.course_details?.teacher_name || '',
+      'Semestre': cc.semester || 'S1',
+      'Obligatoire': cc.is_mandatory ? 'Oui' : 'Non',
+      'Ordre': cc.order || 0,
+      'Nb Étudiants Spécifique': cc.specific_student_count || '',
+      'Nb Étudiants Effectif': cc.effective_student_count || studentClass.student_count,
+      'Total Heures': cc.course_details?.total_hours || 0,
+      'Actif': cc.is_active !== false ? 'Oui' : 'Non'
+    }))
+
+    // Créer le workbook
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(exportData)
+
+    // Ajuster la largeur des colonnes
+    const colWidths = [
+      { wch: 5 },  // N°
+      { wch: 15 }, // Code Cours
+      { wch: 40 }, // Nom
+      { wch: 8 },  // Type
+      { wch: 25 }, // Enseignant
+      { wch: 10 }, // Semestre
+      { wch: 12 }, // Obligatoire
+      { wch: 8 },  // Ordre
+      { wch: 18 }, // Nb Spécifique
+      { wch: 16 }, // Nb Effectif
+      { wch: 12 }, // Total Heures
+      { wch: 8 },  // Actif
+    ]
+    ws['!cols'] = colWidths
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Liaisons Cours-Classe')
+
+    // Télécharger le fichier
+    const fileName = `liaisons_${studentClass.code}_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(wb, fileName)
+
+    addToast({
+      title: 'Succès',
+      description: `${classCourses.length} liaison(s) exportée(s) vers ${fileName}`,
+      variant: 'default'
+    })
+  }
+
+  // Import des liaisons depuis Excel
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      const data = await file.arrayBuffer()
+      const wb = XLSX.read(data)
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const jsonData = XLSX.utils.sheet_to_json(ws) as any[]
+
+      if (jsonData.length === 0) {
+        addToast({
+          title: 'Erreur',
+          description: 'Le fichier est vide',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      // Valider et extraire les codes de cours avec leurs métadonnées de liaison
+      const coursesWithMeta: Array<{
+        code: string
+        semester: string
+        is_mandatory: boolean
+        order: number
+        specific_student_count?: number
+      }> = jsonData.map(row => ({
+        code: row['Code Cours'] || row['code'] || row['Code'],
+        semester: row['Semestre'] || 'S1',
+        is_mandatory: (row['Obligatoire'] || 'Oui').toLowerCase() === 'oui',
+        order: parseInt(row['Ordre'] || '0') || 0,
+        specific_student_count: row['Nb Étudiants Spécifique'] ? parseInt(row['Nb Étudiants Spécifique']) : undefined
+      })).filter(item => item.code)
+
+      if (coursesWithMeta.length === 0) {
+        addToast({
+          title: 'Erreur',
+          description: 'Aucun code de cours trouvé dans le fichier',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      // Trouver les cours correspondants dans availableCourses
+      const coursesToAdd: number[] = []
+      const notFoundCourses: string[] = []
+      let addedCount = 0
+
+      // Importer chaque cours individuellement avec ses métadonnées
+      setAddingCourses(true)
+
+      for (const item of coursesWithMeta) {
+        const course = availableCourses.find(c => c.code === item.code)
+
+        if (course) {
+          // Vérifier si le cours n'est pas déjà assigné
+          if (!assignedCourseIds.includes(course.id)) {
+            try {
+              // Ajouter le cours avec ses métadonnées de liaison
+              await classService.assignCoursesBulk(parseInt(classId), {
+                courses: [course.id],
+                is_mandatory: item.is_mandatory,
+                semester: item.semester,
+                order: item.order,
+                specific_student_count: item.specific_student_count
+              })
+              addedCount++
+            } catch (error) {
+              console.error(`Erreur ajout ${item.code}:`, error)
+              notFoundCourses.push(`${item.code} (erreur d'ajout)`)
+            }
+          } else {
+            notFoundCourses.push(`${item.code} (déjà assigné)`)
+          }
+        } else {
+          notFoundCourses.push(item.code)
+        }
+      }
+
+      await fetchClassCourses()
+
+      let message = `${addedCount} liaison(s) importée(s) avec succès`
+      if (notFoundCourses.length > 0) {
+        message += `\n${notFoundCourses.length} non importé(s): ${notFoundCourses.slice(0, 3).join(', ')}`
+        if (notFoundCourses.length > 3) {
+          message += '...'
+        }
+      }
+
+      addToast({
+        title: 'Import terminé',
+        description: message,
+        variant: addedCount > 0 ? 'default' : 'destructive'
+      })
+
+    } catch (error: any) {
+      console.error('Erreur import:', error)
+      addToast({
+        title: 'Erreur',
+        description: 'Erreur lors de l\'import du fichier',
+        variant: 'destructive'
+      })
+    } finally {
+      setAddingCourses(false)
+      // Reset input file
+      event.target.value = ''
+    }
+  }
+
+  // Télécharger le template Excel pour les liaisons
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        'Code Cours': 'MATH101',
+        'Nom du Cours': 'Mathématiques I (Information seulement)',
+        'Type': 'CM',
+        'Enseignant': 'Dr. Dupont (Information seulement)',
+        'Semestre': 'S1',
+        'Obligatoire': 'Oui',
+        'Ordre': 1,
+        'Nb Étudiants Spécifique': '',
+        'Total Heures': '45 (Information seulement)'
+      },
+      {
+        'Code Cours': 'PHYS101',
+        'Nom du Cours': 'Physique I (Information seulement)',
+        'Type': 'TP',
+        'Enseignant': 'Dr. Martin (Information seulement)',
+        'Semestre': 'S1',
+        'Obligatoire': 'Oui',
+        'Ordre': 2,
+        'Nb Étudiants Spécifique': '25',
+        'Total Heures': '30 (Information seulement)'
+      },
+      {
+        'Code Cours': 'INFO101',
+        'Nom du Cours': 'Informatique (Information seulement)',
+        'Type': 'TD',
+        'Enseignant': 'Dr. Dubois (Information seulement)',
+        'Semestre': 'S2',
+        'Obligatoire': 'Non',
+        'Ordre': 3,
+        'Nb Étudiants Spécifique': '',
+        'Total Heures': '40 (Information seulement)'
+      }
+    ]
+
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(templateData)
+
+    // Instructions en haut du fichier
+    XLSX.utils.sheet_add_aoa(ws, [[
+      'INSTRUCTIONS: Remplissez uniquement les colonnes "Code Cours", "Semestre", "Obligatoire", "Ordre" et "Nb Étudiants Spécifique".'
+    ]], { origin: 'A1' })
+    XLSX.utils.sheet_add_aoa(ws, [[
+      'Les autres colonnes (Nom, Type, Enseignant, Total Heures) sont informatives et seront récupérées automatiquement depuis la base de données des cours.'
+    ]], { origin: 'A2' })
+    XLSX.utils.sheet_add_aoa(ws, [['']], { origin: 'A3' })
+
+    // Ajuster la largeur des colonnes
+    const colWidths = [
+      { wch: 15 }, // Code Cours
+      { wch: 45 }, // Nom du Cours
+      { wch: 8 },  // Type
+      { wch: 35 }, // Enseignant
+      { wch: 10 }, // Semestre
+      { wch: 12 }, // Obligatoire
+      { wch: 8 },  // Ordre
+      { wch: 22 }, // Nb Étudiants Spécifique
+      { wch: 30 }, // Total Heures
+    ]
+    ws['!cols'] = colWidths
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Template Liaisons')
+    XLSX.writeFile(wb, 'template_liaisons_cours_classe.xlsx')
+
+    addToast({
+      title: 'Template téléchargé',
+      description: 'Remplissez le fichier avec vos codes de cours et leurs paramètres de liaison',
+      variant: 'default'
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -210,13 +459,57 @@ export default function ClassCoursesPage() {
               {studentClass?.student_count} étudiants
             </p>
           </div>
-          <Button
-            onClick={() => setShowModal(true)}
-            className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 shadow-lg shadow-primary/20"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter des cours
-          </Button>
+          <div className="flex gap-3">
+            {/* Bouton Template */}
+            <Button
+              onClick={downloadTemplate}
+              variant="outline"
+              className="border-blue-500 text-blue-600 hover:bg-blue-50"
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Template
+            </Button>
+
+            {/* Bouton Import */}
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleImport}
+                className="hidden"
+                disabled={addingCourses}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={addingCourses}
+                className="border-green-500 text-green-600 hover:bg-green-50"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Importer
+              </Button>
+            </label>
+
+            {/* Bouton Export */}
+            <Button
+              onClick={handleExport}
+              variant="outline"
+              disabled={classCourses.length === 0}
+              className="border-purple-500 text-purple-600 hover:bg-purple-50"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Exporter
+            </Button>
+
+            {/* Bouton Ajouter */}
+            <Button
+              onClick={() => setShowModal(true)}
+              className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 shadow-lg shadow-primary/20"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter des cours
+            </Button>
+          </div>
         </div>
       </div>
 

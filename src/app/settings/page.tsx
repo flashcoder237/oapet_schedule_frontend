@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import {
   Settings,
   User,
@@ -23,7 +24,8 @@ import {
   AlertTriangle,
   CheckCircle,
   Info,
-  BookOpen
+  BookOpen,
+  Calendar
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -172,7 +174,7 @@ export default function SettingsPage() {
       )}
 
       <Tabs value={activeSection} onValueChange={setActiveSection} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="w-4 h-4" />
             Profil
@@ -188,6 +190,10 @@ export default function SettingsPage() {
           <TabsTrigger value="appearance" className="flex items-center gap-2">
             <Palette className="w-4 h-4" />
             Apparence
+          </TabsTrigger>
+          <TabsTrigger value="academic" className="flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            Périodes
           </TabsTrigger>
           <TabsTrigger value="pedagogical" className="flex items-center gap-2">
             <BookOpen className="w-4 h-4" />
@@ -529,6 +535,47 @@ export default function SettingsPage() {
           </motion.div>
         </TabsContent>
 
+        {/* Section Périodes Académiques */}
+        <TabsContent value="academic" className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Périodes Académiques
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-blue-900">Gestion des périodes académiques</h4>
+                      <p className="text-sm text-blue-700 mt-2">
+                        Configurez les semestres, années académiques et dates de début/fin de chaque période.
+                        Ces paramètres sont utilisés pour la génération des emplois du temps.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-center py-6">
+                  <Link
+                    href="/settings/academic-periods"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                  >
+                    <Calendar className="w-5 h-5" />
+                    Gérer les périodes académiques
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
         {/* Section Contraintes Pédagogiques */}
         <TabsContent value="pedagogical" className="space-y-6">
           <motion.div
@@ -557,13 +604,13 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex justify-center py-6">
-                  <a
+                  <Link
                     href="/settings/pedagogical-constraints"
                     className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
                   >
                     <BookOpen className="w-5 h-5" />
                     Ouvrir la page des contraintes pédagogiques
-                  </a>
+                  </Link>
                 </div>
               </CardContent>
             </Card>

@@ -46,9 +46,10 @@ interface CourseInfo {
 interface CourseCoverageProps {
   scheduleId?: number;
   className?: string;
+  teacherId?: number;  // Nouveau paramètre optionnel pour filtrer par enseignant
 }
 
-export function CourseCoverage({ scheduleId, className = '' }: CourseCoverageProps) {
+export function CourseCoverage({ scheduleId, className = '', teacherId }: CourseCoverageProps) {
   const [coverage, setCoverage] = useState<CourseCoverageData | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'fully_covered' | 'partially_covered' | 'not_covered'>('all');
@@ -58,14 +59,20 @@ export function CourseCoverage({ scheduleId, className = '' }: CourseCoveragePro
     if (scheduleId) {
       fetchCoverage();
     }
-  }, [scheduleId]);
+  }, [scheduleId, teacherId]);
 
   const fetchCoverage = async () => {
     if (!scheduleId) return;
 
     setLoading(true);
     try {
-      const data = await apiClient.get<CourseCoverageData>(`/schedules/schedules/${scheduleId}/course_coverage/`);
+      // Construire l'URL avec le paramètre teacher_id si fourni
+      let url = `/schedules/schedules/${scheduleId}/course_coverage/`;
+      if (teacherId) {
+        url += `?teacher_id=${teacherId}`;
+      }
+
+      const data = await apiClient.get<CourseCoverageData>(url);
       setCoverage(data);
     } catch (error) {
       console.error('Erreur lors du chargement de la couverture:', error);

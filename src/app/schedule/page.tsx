@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -69,6 +70,7 @@ export default function SchedulePage() {
   // Hook d'authentification et permissions
   const { user, loading: authLoading, isTeacher, isStudent, canManageSchedules } = useAuth();
   const isReadOnly = isTeacher() || isStudent();
+  const searchParams = useSearchParams();
 
   // États principaux
   const [studentClasses, setStudentClasses] = useState<StudentClass[]>([]);
@@ -162,11 +164,44 @@ export default function SchedulePage() {
       const classesArray = Array.isArray(data) ? data : [];
       setStudentClasses(classesArray);
 
-      // Sélectionner automatiquement la première classe par défaut
+      // Vérifier si un ID d'emploi du temps est passé dans l'URL
+      const scheduleIdFromUrl = searchParams.get('id');
+
+      if (scheduleIdFromUrl && classesArray.length > 0) {
+        try {
+          // Récupérer l'emploi du temps pour connaître sa classe
+          console.log('🔍 Récupération de l\'emploi du temps ID:', scheduleIdFromUrl);
+          const schedule = await scheduleService.getSchedule(parseInt(scheduleIdFromUrl));
+
+          if (schedule && schedule.student_class) {
+            // Chercher la classe correspondante dans la liste
+            const classFromSchedule = classesArray.find(c =>
+              c.id === schedule.student_class || c.code === schedule.student_class_code
+            );
+
+            if (classFromSchedule) {
+              setSelectedClass(classFromSchedule.code);
+              console.log('✅ Classe sélectionnée depuis l\'emploi du temps (Schedule ID:', scheduleIdFromUrl, '):', classFromSchedule.name, 'Code:', classFromSchedule.code);
+              return;
+            } else {
+              console.warn('⚠️ Classe de l\'emploi du temps', scheduleIdFromUrl, 'non trouvée dans les classes disponibles');
+            }
+          }
+        } catch (error) {
+          console.error('❌ Erreur lors de la récupération de l\'emploi du temps:', error);
+          addToast({
+            title: "Attention",
+            description: "Impossible de charger l'emploi du temps demandé",
+            variant: "default"
+          });
+        }
+      }
+
+      // Sélectionner automatiquement la première classe par défaut si aucune n'est déjà sélectionnée
       if (classesArray.length > 0 && !selectedClass) {
-        const firstClassId = classesArray[0].id.toString();
-        setSelectedClass(firstClassId);
-        console.log('✅ Première classe sélectionnée automatiquement:', classesArray[0].name);
+        const firstClassCode = classesArray[0].code; // Utiliser le code au lieu de l'ID
+        setSelectedClass(firstClassCode);
+        console.log('✅ Première classe sélectionnée automatiquement:', classesArray[0].name, 'Code:', firstClassCode);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des classes:', error);
@@ -804,7 +839,28 @@ export default function SchedulePage() {
 
     // Filtre "Mon emploi du temps" pour les enseignants
     if (showOnlyMyCourses && isTeacher() && user?.teacher_id) {
-      filtered = filtered.filter(session => session.teacher === user.teacher_id);
+      console.log('🔍 Filtrage par enseignant - teacher_id:', user.teacher_id);
+      console.log('📚 Sessions avant filtrage:', filtered.length);
+      console.log('📝 Exemple de session:', filtered[0]);
+
+      // Filtrer par l'ID de l'enseignant
+      // Vérifier plusieurs champs possibles où l'ID peut être stocké
+      filtered = filtered.filter(session => {
+        const teacherId = session.teacher || session.teacher_id || session.teacher_details?.id;
+        const matches = teacherId === user.teacher_id;
+
+        if (!matches && filtered.indexOf(session) < 3) {
+          console.log(`❌ Session exclue:`, {
+            course: session.course_details?.name,
+            teacher: teacherId,
+            expected: user.teacher_id
+          });
+        }
+
+        return matches;
+      });
+
+      console.log('✅ Sessions après filtrage:', filtered.length);
     }
 
     setFilteredSessions(filtered);
@@ -1387,6 +1443,7 @@ export default function SchedulePage() {
           showOnlyMyCourses={showOnlyMyCourses}
           onShowOnlyMyCoursesChange={setShowOnlyMyCourses}
           isTeacher={isTeacher()}
+          user={user}
         />
 
         {/* Formulaire de session */}

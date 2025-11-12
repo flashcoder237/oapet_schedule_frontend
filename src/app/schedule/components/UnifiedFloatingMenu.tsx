@@ -80,6 +80,7 @@ interface UnifiedFloatingMenuProps {
   showOnlyMyCourses?: boolean;
   onShowOnlyMyCoursesChange?: (value: boolean) => void;
   isTeacher?: boolean;
+  user?: any;  // Ajouter l'utilisateur pour récupérer le teacher_id
 }
 
 export function UnifiedFloatingMenu({
@@ -106,7 +107,8 @@ export function UnifiedFloatingMenu({
   canManage = true,
   showOnlyMyCourses = false,
   onShowOnlyMyCoursesChange,
-  isTeacher = false
+  isTeacher = false,
+  user
 }: UnifiedFloatingMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabMode>('controls');
@@ -652,6 +654,7 @@ export function UnifiedFloatingMenu({
                   <CourseCoverage
                     scheduleId={currentScheduleId}
                     className="border-0 shadow-none"
+                    teacherId={isTeacher && user?.teacher_id ? user.teacher_id : undefined}
                   />
                 ) : (
                   <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 text-center">

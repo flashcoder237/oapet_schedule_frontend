@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Save, Info, AlertCircle, CheckCircle } from 'lucide-react';
+import { Save, Info, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
 
@@ -42,6 +43,7 @@ const COURSE_TYPES = [
 ];
 
 export default function PedagogicalConstraintsPage() {
+  const router = useRouter();
   const { addToast } = useToast();
   const [constraints, setConstraints] = useState<Record<string, CourseTypeConstraint>>({
     CM: {
@@ -200,6 +202,16 @@ export default function PedagogicalConstraintsPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Bouton Retour */}
+      <Button
+        variant="ghost"
+        onClick={() => router.push('/settings')}
+        className="mb-6 hover:bg-primary/10"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Retour aux paramètres
+      </Button>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
