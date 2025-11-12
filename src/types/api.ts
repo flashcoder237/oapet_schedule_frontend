@@ -112,6 +112,8 @@ export interface Schedule {
   name: string;
   academic_period: number;
   academic_period_details?: AcademicPeriod;
+  student_class?: number;
+  student_class_code?: string;
   curriculum?: number;
   curriculum_details?: any;
   teacher?: number;

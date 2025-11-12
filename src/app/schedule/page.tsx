@@ -846,7 +846,7 @@ export default function SchedulePage() {
       // Filtrer par l'ID de l'enseignant
       // Vérifier plusieurs champs possibles où l'ID peut être stocké
       filtered = filtered.filter(session => {
-        const teacherId = session.teacher || session.teacher_id || session.teacher_details?.id;
+        const teacherId = session.teacher || session.teacher_details?.id;
         const matches = teacherId === user.teacher_id;
 
         if (!matches && filtered.indexOf(session) < 3) {

@@ -122,6 +122,8 @@ export const classService = {
     courses: number[];
     is_mandatory?: boolean;
     semester?: string;
+    order?: number;
+    specific_student_count?: number;
   }): Promise<{
     success: boolean;
     assigned: number;

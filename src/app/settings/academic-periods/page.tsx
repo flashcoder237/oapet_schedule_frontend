@@ -376,8 +376,10 @@ export default function AcademicPeriodsPage() {
       {selectedIds.size > 0 && (
         <BulkActions
           selectedCount={selectedIds.size}
+          totalCount={periods.length}
+          onSelectAll={() => setSelectedIds(new Set(periods.map(p => p.id)))}
+          onDeselectAll={() => setSelectedIds(new Set())}
           actions={bulkActions}
-          onClear={() => setSelectedIds(new Set())}
         />
       )}
 
