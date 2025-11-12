@@ -30,6 +30,9 @@ export interface ClassCourse {
   is_mandatory: boolean;
   semester: string;
   effective_student_count: number;
+  order?: number;
+  specific_student_count?: number;
+  is_active?: boolean;
 }
 
 export interface Department {

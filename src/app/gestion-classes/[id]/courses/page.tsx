@@ -182,16 +182,15 @@ export default function ClassCoursesPage() {
     // Préparer les données pour l'export avec TOUTES les informations de liaison
     const exportData = classCourses.map((cc, index) => ({
       'N°': index + 1,
-      'Code Cours': cc.course_code || cc.course_details?.code || '',
-      'Nom du Cours': cc.course_name || cc.course_details?.name || '',
-      'Type': cc.course_type || cc.course_details?.course_type || '',
-      'Enseignant': cc.teacher_name || cc.course_details?.teacher_name || '',
+      'Code Cours': cc.course_code || '',
+      'Nom du Cours': cc.course_name || '',
+      'Type': cc.course_type || '',
+      'Enseignant': cc.teacher_name || '',
       'Semestre': cc.semester || 'S1',
       'Obligatoire': cc.is_mandatory ? 'Oui' : 'Non',
       'Ordre': cc.order || 0,
       'Nb Étudiants Spécifique': cc.specific_student_count || '',
       'Nb Étudiants Effectif': cc.effective_student_count || studentClass.student_count,
-      'Total Heures': cc.course_details?.total_hours || 0,
       'Actif': cc.is_active !== false ? 'Oui' : 'Non'
     }))
 
