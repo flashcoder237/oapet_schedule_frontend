@@ -327,7 +327,7 @@ export default function Sidebar() {
               
               <div className="text-center">
                 <p className="text-xs text-primary-foreground/50">
-                  © 2024 Université de Douala
+                  © 2025 OAPET Schedule system
                 </p>
               </div>
             </motion.div>

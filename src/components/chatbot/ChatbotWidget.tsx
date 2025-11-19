@@ -6,12 +6,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Loader2, ThumbsUp, ThumbsDown, Trash2, MoreVertical } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { chatbotService, Message, Conversation } from '@/lib/api/services/chatbot';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
+import { getChatbotActionExecutor } from '@/services/chatbotActionExecutor';
 
 export default function ChatbotWidget() {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -19,6 +22,11 @@ export default function ChatbotWidget() {
   const [conversationId, setConversationId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
+
+  // Initialiser l'executor avec le router
+  useEffect(() => {
+    getChatbotActionExecutor(router);
+  }, [router]);
 
   // Charger la conversation active au montage
   useEffect(() => {
@@ -93,6 +101,28 @@ export default function ChatbotWidget() {
         response.user_message,
         response.bot_response,
       ]);
+
+      // Exécuter les actions UI si présentes
+      if (response.bot_response.attachments) {
+        const executor = getChatbotActionExecutor(router);
+
+        response.bot_response.attachments.forEach((attachment: any) => {
+          if (attachment.type === 'ui_action') {
+            console.log('[ChatbotWidget] Exécution action UI:', attachment.action);
+
+            const success = executor.executeAction(attachment);
+
+            if (success) {
+              addToast({
+                title: 'Action exécutée',
+                description: 'L\'action a été exécutée avec succès',
+              });
+            } else {
+              console.warn('[ChatbotWidget] Échec exécution action:', attachment.action);
+            }
+          }
+        });
+      }
     } catch (error: any) {
       console.error('Erreur lors de l\'envoi du message:', error);
       addToast({

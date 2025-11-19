@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useState, useEffect, useImperativeHandle, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -9,6 +9,7 @@ import AnimatedBackground from '@/components/ui/animated-background';
 import { BulkActions, CommonBulkActions } from '@/components/ui/BulkActions';
 import { Plus, Settings2, X, Calendar, CheckSquare } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { getChatbotActionExecutor } from '@/services/chatbotActionExecutor';
 
 // Import des composants créés
 import {
@@ -71,6 +72,7 @@ export default function SchedulePage() {
   const { user, loading: authLoading, isTeacher, isStudent, canManageSchedules } = useAuth();
   const isReadOnly = isTeacher() || isStudent();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // États principaux
   const [studentClasses, setStudentClasses] = useState<StudentClass[]>([]);
@@ -120,6 +122,110 @@ export default function SchedulePage() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const { addToast } = useToast();
+
+  // Enregistrement auprès du ChatbotActionExecutor
+  useEffect(() => {
+    const executor = getChatbotActionExecutor(router);
+
+    // Exposer les méthodes que le chatbot peut appeler
+    const pageAPI = {
+      // Sélection de classe
+      selectClass: (classCode: string) => {
+        console.log('[Schedule] Chatbot action: selectClass', classCode);
+        setSelectedClass(classCode);
+        addToast({
+          title: "Classe sélectionnée",
+          description: `Affichage de la classe ${classCode}`,
+        });
+      },
+
+      // Changement de vue
+      setViewMode: (mode: ViewMode) => {
+        console.log('[Schedule] Chatbot action: setViewMode', mode);
+        setViewMode(mode);
+        addToast({
+          title: "Vue changée",
+          description: `Mode de vue: ${mode === 'day' ? 'Jour' : mode === 'week' ? 'Semaine' : 'Mois'}`,
+        });
+      },
+
+      // Filtrage
+      setFilter: (filter: FilterType) => {
+        console.log('[Schedule] Chatbot action: setFilter', filter);
+        setActiveFilter(filter);
+        addToast({
+          title: "Filtre appliqué",
+          description: `Affichage des sessions: ${filter}`,
+        });
+      },
+
+      // Affichage/masquage statistiques
+      toggleStatistics: (show: boolean) => {
+        console.log('[Schedule] Chatbot action: toggleStatistics', show);
+        // La logique des stats est gérée par UnifiedFloatingMenu
+        addToast({
+          title: show ? "Statistiques affichées" : "Statistiques masquées",
+          description: "Consultez le menu flottant",
+        });
+      },
+
+      // Changement de mode d'édition
+      setEditMode: (mode: EditMode) => {
+        console.log('[Schedule] Chatbot action: setEditMode', mode);
+        setEditMode(mode);
+        const modeNames = {
+          'view': 'Lecture seule',
+          'edit': 'Édition',
+          'drag': 'Drag & Drop'
+        };
+        addToast({
+          title: "Mode changé",
+          description: `Mode: ${modeNames[mode]}`,
+        });
+      },
+
+      // Ouverture formulaire session
+      openSessionForm: (sessionId?: number) => {
+        console.log('[Schedule] Chatbot action: openSessionForm', sessionId);
+        if (sessionId) {
+          const session = sessions.find(s => s.id === sessionId);
+          setEditingSession(session || null);
+        } else {
+          setEditingSession(null);
+        }
+        setShowSessionForm(true);
+        addToast({
+          title: sessionId ? "Modification de session" : "Nouvelle session",
+          description: "Formulaire ouvert",
+        });
+      },
+
+      // Export
+      exportSchedule: (format: 'excel' | 'pdf' | 'csv') => {
+        console.log('[Schedule] Chatbot action: exportSchedule', format);
+        // Déclencher l'export (la fonction handleExport existe déjà dans le composant)
+        if (format === 'excel') {
+          // On va appeler handleExport qui est défini plus bas
+          setTimeout(() => {
+            const exportButton = document.querySelector('[data-export-button]') as HTMLElement;
+            if (exportButton) {
+              exportButton.click();
+            }
+          }, 100);
+        }
+        addToast({
+          title: "Export en cours",
+          description: `Format: ${format.toUpperCase()}`,
+        });
+      }
+    };
+
+    executor.registerSchedulePage(pageAPI);
+
+    return () => {
+      // Cleanup si nécessaire
+    };
+  }, [router, sessions, addToast]);
 
   // Génération d'une grille très fine (intervalles de 5 minutes) sur horaires réduits
   const generateTimeSlots = () => {

@@ -18,10 +18,12 @@ import {
   AlertCircle,
   Plus,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { chatbotService, Message, Conversation } from '@/lib/api/services/chatbot';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
+import { getChatbotActionExecutor } from '@/services/chatbotActionExecutor';
 import MessageFeedback from './MessageFeedback';
 import ConversationHistory from './ConversationHistory';
 import ChatbotAnalytics from './ChatbotAnalytics';
@@ -34,6 +36,7 @@ interface EnhancedChatbotWidgetProps {
 }
 
 export default function EnhancedChatbotWidget({ isOpen, onClose }: EnhancedChatbotWidgetProps) {
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -51,6 +54,11 @@ export default function EnhancedChatbotWidget({ isOpen, onClose }: EnhancedChatb
     "Y a-t-il des conflits d'horaire ?",
     "Combien de salles sont disponibles ?",
   ];
+
+  // Initialiser l'executor avec le router
+  useEffect(() => {
+    getChatbotActionExecutor(router);
+  }, [router]);
 
   useEffect(() => {
     if (isOpen && viewMode === 'chat') {
@@ -129,6 +137,28 @@ export default function EnhancedChatbotWidget({ isOpen, onClose }: EnhancedChatb
       if (response.bot_response.context_data?.suggestions) {
         setSuggestedQuestions(response.bot_response.context_data.suggestions);
         setShowSuggestions(true);
+      }
+
+      // Exécuter les actions UI si présentes
+      if (response.bot_response.attachments) {
+        const executor = getChatbotActionExecutor(router);
+
+        response.bot_response.attachments.forEach((attachment: any) => {
+          if (attachment.type === 'ui_action') {
+            console.log('[EnhancedChatbotWidget] Exécution action UI:', attachment.action);
+
+            const success = executor.executeAction(attachment);
+
+            if (success) {
+              addToast({
+                title: 'Action exécutée',
+                description: 'L\'action a été exécutée avec succès',
+              });
+            } else {
+              console.warn('[EnhancedChatbotWidget] Échec exécution action:', attachment.action);
+            }
+          }
+        });
       }
     } catch (error: any) {
       console.error('Erreur lors de l\'envoi du message:', error);
