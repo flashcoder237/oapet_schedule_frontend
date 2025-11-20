@@ -227,6 +227,25 @@ export const scheduleService = {
         console.error('Error filtering weekly sessions by class:', error);
       }
     }
+
+    // ✅ NOUVEAU: Filtrer par semaine
+    if (params.week_start && filteredResults.length > 0) {
+      const weekStartDate = new Date(params.week_start);
+      const weekEndDate = new Date(weekStartDate);
+      weekEndDate.setDate(weekEndDate.getDate() + 7); // Fin de semaine = +7 jours
+
+      filteredResults = filteredResults.filter((session: any) => {
+        // Récupérer la date de la session
+        const sessionDate = session.specific_date || session.date;
+
+        if (!sessionDate) return true; // Si pas de date, on garde la session
+
+        const date = new Date(sessionDate);
+        return date >= weekStartDate && date < weekEndDate;
+      });
+
+      console.log(`Weekly view: Filtered by week ${params.week_start}, ${filteredResults.length} sessions remaining`);
+    }
     
     // Organiser les sessions par jour de la semaine
     const sessionsByDay: { [key: string]: ScheduleSession[] } = {
