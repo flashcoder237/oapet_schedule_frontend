@@ -28,7 +28,7 @@ import { useAuth } from '@/hooks/useAuth';
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
-  const { user, isTeacher, canManageSchedules } = useAuth();
+  const { user, isTeacher, isStudent, canManageSchedules } = useAuth();
   
   const navigation = [
     {
@@ -116,6 +116,11 @@ export default function Sidebar() {
       allowTeacher: true
     },
   ];
+
+  // Si l'utilisateur est un étudiant, ne pas afficher la sidebar admin
+  if (isStudent()) {
+    return null; // La sidebar sera gérée par le layout étudiant
+  }
 
   // Filtrer la navigation selon le rôle
   const filteredNavigation = navigation.filter(item => {

@@ -15,7 +15,21 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  
+
+  const getRoleLabel = (role?: string) => {
+    if (!role) return 'Membre';
+    const roleMap: Record<string, string> = {
+      'admin': 'Administrateur',
+      'teacher': 'Enseignant',
+      'professor': 'Enseignant',
+      'student': 'Étudiant',
+      'staff': 'Personnel',
+      'department_head': 'Chef de Département',
+      'scheduler': 'Planificateur'
+    };
+    return roleMap[role] || role;
+  };
+
   const getPageTitle = () => {
     if (pathname === '/') return 'Accueil';
     if (pathname === '/dashboard') return 'Tableau de bord';
@@ -152,7 +166,7 @@ export default function Header() {
                   {user?.full_name || user?.username || 'Utilisateur'}
                 </p>
                 <p className="text-xs text-muted-foreground leading-none mt-0.5">
-                  {user?.profile?.role || 'Membre'}
+                  {getRoleLabel(user?.role || user?.profile?.role)}
                 </p>
               </div>
               <motion.div

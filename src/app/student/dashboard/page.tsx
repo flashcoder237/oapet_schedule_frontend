@@ -25,9 +25,17 @@ export default function StudentDashboard() {
   const [weeklySchedule, setWeeklySchedule] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     loadStudentData();
+
+    // Rafraîchir l'heure actuelle toutes les 30 secondes pour mettre à jour le cours en cours
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30000); // 30 secondes
+
+    return () => clearInterval(interval);
   }, []);
 
   const loadStudentData = async () => {
@@ -66,6 +74,55 @@ export default function StudentDashboard() {
       'TP': 'bg-purple-100 text-purple-700',
     };
     return colors[type] || 'bg-gray-100 text-gray-700';
+  };
+
+  const getCurrentAndNextSessions = () => {
+    if (!todaySchedule?.sessions) {
+      return { currentSession: null, nextSession: null, timeRemaining: null, timeUntilNext: null };
+    }
+
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes(); // Current time in minutes
+
+    const sessions = todaySchedule.sessions.map((session: any) => {
+      const [startHour, startMin] = session.time_slot_details?.start_time?.split(':').map(Number) || [0, 0];
+      const [endHour, endMin] = session.time_slot_details?.end_time?.split(':').map(Number) || [0, 0];
+      return {
+        ...session,
+        startTimeMinutes: startHour * 60 + startMin,
+        endTimeMinutes: endHour * 60 + endMin,
+      };
+    });
+
+    // Find current session (time is between start and end)
+    const currentSession = sessions.find(
+      (s: any) => currentTime >= s.startTimeMinutes && currentTime < s.endTimeMinutes
+    );
+
+    // Calculate time remaining for current session
+    const timeRemaining = currentSession
+      ? currentSession.endTimeMinutes - currentTime
+      : null;
+
+    // Find next session (starts after current time)
+    const upcomingSessions = sessions.filter((s: any) => s.startTimeMinutes > currentTime);
+    const nextSession = upcomingSessions.length > 0 ? upcomingSessions[0] : null;
+
+    // Calculate time until next session
+    const timeUntilNext = nextSession
+      ? nextSession.startTimeMinutes - currentTime
+      : null;
+
+    return { currentSession, nextSession, timeRemaining, timeUntilNext };
+  };
+
+  const formatTimeRemaining = (minutes: number): string => {
+    if (minutes < 60) {
+      return `${minutes} min`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}min`;
   };
 
   if (loading) {
@@ -186,6 +243,108 @@ export default function StudentDashboard() {
             </Card>
           </motion.div>
         </div>
+
+        {/* Cours en cours et prochain cours */}
+        {(() => {
+          const { currentSession, nextSession, timeRemaining, timeUntilNext } = getCurrentAndNextSessions();
+
+          if (!currentSession && !nextSession) {
+            return null;
+          }
+
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
+              {/* Cours en cours */}
+              {currentSession && (
+                <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-500 shadow-lg">
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                        <p className="text-sm font-semibold text-green-700 uppercase tracking-wide">
+                          En cours maintenant
+                        </p>
+                      </div>
+                      {timeRemaining !== null && (
+                        <Badge className="bg-green-600 text-white">
+                          Reste {formatTimeRemaining(timeRemaining)}
+                        </Badge>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">
+                      {currentSession.course_details?.name}
+                    </h3>
+                    <div className="space-y-1 text-sm text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        <span className="font-medium">
+                          {currentSession.time_slot_details?.start_time} - {currentSession.time_slot_details?.end_time}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        <span>
+                          {currentSession.teacher_details?.first_name} {currentSession.teacher_details?.last_name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        <span>{currentSession.room_details?.name}</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Prochain cours */}
+              {nextSession && (
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-500 shadow-lg">
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <ChevronRight className="w-4 h-4 text-blue-700" />
+                        <p className="text-sm font-semibold text-blue-700 uppercase tracking-wide">
+                          Prochain cours
+                        </p>
+                      </div>
+                      {timeUntilNext !== null && (
+                        <Badge className="bg-blue-600 text-white">
+                          Dans {formatTimeRemaining(timeUntilNext)}
+                        </Badge>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">
+                      {nextSession.course_details?.name}
+                    </h3>
+                    <div className="space-y-1 text-sm text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        <span className="font-medium">
+                          {nextSession.time_slot_details?.start_time} - {nextSession.time_slot_details?.end_time}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        <span>
+                          {nextSession.teacher_details?.first_name} {nextSession.teacher_details?.last_name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        <span>{nextSession.room_details?.name}</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </motion.div>
+          );
+        })()}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Emploi du temps d'aujourd'hui */}

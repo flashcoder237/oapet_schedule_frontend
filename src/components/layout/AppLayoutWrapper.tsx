@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import AppLayout from './AppLayout';
 import { LoadingSpinner } from '@/components/ui/loading';
+import { StudentRedirect } from '@/components/auth/StudentRedirect';
 
 interface AppLayoutWrapperProps {
   children: React.ReactNode;
@@ -10,6 +12,7 @@ interface AppLayoutWrapperProps {
 
 export default function AppLayoutWrapper({ children }: AppLayoutWrapperProps) {
   const [isClient, setIsClient] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     setIsClient(true);
@@ -29,6 +32,24 @@ export default function AppLayoutWrapper({ children }: AppLayoutWrapperProps) {
     );
   }
 
-  // Only render AppLayout on client
-  return <AppLayout>{children}</AppLayout>;
+  // Check if we're on a student route
+  const isStudentRoute = pathname?.startsWith('/student');
+
+  // Student routes use their own layout, don't wrap with AppLayout
+  if (isStudentRoute) {
+    return (
+      <>
+        <StudentRedirect />
+        {children}
+      </>
+    );
+  }
+
+  // Only render AppLayout for non-student routes (admin/teacher)
+  return (
+    <>
+      <StudentRedirect />
+      <AppLayout>{children}</AppLayout>
+    </>
+  );
 }
