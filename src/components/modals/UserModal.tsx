@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Shield, Building, Eye, EyeOff, Save, Loader2 } from 'lucide-react';
+import { X, User, Mail, Shield, Building, Eye, EyeOff, Save, Loader2, GraduationCap, Phone, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import { classService } from '@/lib/api/services/classes';
+import type { StudentClass } from '@/lib/api/services/classes';
 interface User {
   id: number;
   username: string;
@@ -43,15 +45,45 @@ export default function UserModal({
     role: 'professor',
     department_id: '',
     employee_id: '',
-    is_active: true
+    is_active: true,
+    // Student-specific fields
+    student_id: '',
+    entry_year: new Date().getFullYear(),
+    phone: '',
+    address: '',
+    emergency_contact: '',
+    emergency_phone: '',
+    student_class_id: ''
   });
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+  const [classes, setClasses] = useState<StudentClass[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(false);
+
   const { addToast } = useToast();
   const isEditing = !!user;
+
+  // Load all classes when modal opens and role is student
+  useEffect(() => {
+    const loadClasses = async () => {
+      if (isOpen && formData.role === 'student') {
+        try {
+          setLoadingClasses(true);
+          const classesData = await classService.getClasses();
+          setClasses(classesData);
+        } catch (error) {
+          console.error('Error loading classes:', error);
+        } finally {
+          setLoadingClasses(false);
+        }
+      } else {
+        setClasses([]);
+      }
+    };
+    loadClasses();
+  }, [isOpen, formData.role]);
 
   useEffect(() => {
     if (user) {
@@ -65,7 +97,15 @@ export default function UserModal({
         role: user.role || 'professor',
         department_id: user.department_id?.toString() || '',
         employee_id: user.employee_id || '',
-        is_active: user.is_active !== false
+        is_active: user.is_active !== false,
+        // Student fields (will be empty for non-students)
+        student_id: '',
+        entry_year: new Date().getFullYear(),
+        phone: '',
+        address: '',
+        emergency_contact: '',
+        emergency_phone: '',
+        student_class_id: ''
       });
     } else {
       // Reset form for new user
@@ -79,7 +119,14 @@ export default function UserModal({
         role: 'professor',
         department_id: '',
         employee_id: '',
-        is_active: true
+        is_active: true,
+        student_id: '',
+        entry_year: new Date().getFullYear(),
+        phone: '',
+        address: '',
+        emergency_contact: '',
+        emergency_phone: '',
+        student_class_id: ''
       });
     }
     setErrors({});
@@ -101,7 +148,7 @@ export default function UserModal({
     if (!formData.email.includes('@')) newErrors.email = 'Email invalide';
     if (!formData.first_name) newErrors.first_name = 'Le prénom est requis';
     if (!formData.last_name) newErrors.last_name = 'Le nom est requis';
-    
+
     if (!isEditing) {
       if (!formData.password) newErrors.password = 'Le mot de passe est requis';
       if (formData.password.length < 8) newErrors.password = 'Le mot de passe doit contenir au moins 8 caractères';
@@ -110,18 +157,24 @@ export default function UserModal({
       }
     }
 
+    // Student-specific validation
+    if (formData.role === 'student' && !isEditing) {
+      if (!formData.student_id) newErrors.student_id = 'Le matricule est requis';
+      if (!formData.student_class_id) newErrors.student_class_id = 'La classe est requise';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setIsLoading(true);
     try {
-      const userData = {
+      const userData: any = {
         username: formData.username,
         email: formData.email,
         first_name: formData.first_name,
@@ -133,13 +186,26 @@ export default function UserModal({
         ...((!isEditing && formData.password) && { password: formData.password })
       };
 
+      // Add student-specific fields if role is student
+      if (formData.role === 'student' && !isEditing) {
+        userData.student_data = {
+          student_id: formData.student_id,
+          entry_year: formData.entry_year,
+          phone: formData.phone || '',
+          address: formData.address || '',
+          emergency_contact: formData.emergency_contact || '',
+          emergency_phone: formData.emergency_phone || '',
+          student_class_id: parseInt(formData.student_class_id)
+        };
+      }
+
       await onSave(userData);
-      
+
       addToast({
         title: "Succès",
         description: `Utilisateur ${isEditing ? 'mis à jour' : 'créé'} avec succès`,
       });
-      
+
       onClose();
     } catch (error: any) {
       console.error('Erreur lors de la sauvegarde:', error);
@@ -329,6 +395,137 @@ export default function UserModal({
                 </label>
               </div>
             </div>
+
+            {/* Student-specific fields */}
+            {formData.role === 'student' && !isEditing && (
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center gap-2 text-primary mb-2">
+                  <GraduationCap className="w-5 h-5" />
+                  <h3 className="font-semibold">Informations Étudiant</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Student ID */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Matricule *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.student_id}
+                      onChange={(e) => handleChange('student_id', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary ${
+                        errors.student_id ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="2025001"
+                    />
+                    {errors.student_id && (
+                      <p className="text-red-500 text-sm mt-1">{errors.student_id}</p>
+                    )}
+                  </div>
+
+                  {/* Student Class */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Classe *
+                    </label>
+                    <select
+                      value={formData.student_class_id}
+                      onChange={(e) => handleChange('student_class_id', e.target.value)}
+                      disabled={loadingClasses}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary ${
+                        errors.student_class_id ? 'border-red-500' : 'border-gray-300'
+                      } ${loadingClasses ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    >
+                      <option value="">
+                        {loadingClasses ? 'Chargement...' : 'Sélectionner une classe'}
+                      </option>
+                      {classes.map((studentClass) => (
+                        <option key={studentClass.id} value={studentClass.id}>
+                          {studentClass.code} - {studentClass.name}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.student_class_id && (
+                      <p className="text-red-500 text-sm mt-1">{errors.student_class_id}</p>
+                    )}
+                  </div>
+
+                  {/* Entry Year */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Année d'entrée
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.entry_year}
+                      onChange={(e) => handleChange('entry_year', parseInt(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                      min="2020"
+                      max="2030"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                      <Phone className="w-3 h-3" />
+                      Téléphone
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleChange('phone', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="+237 690 000 000"
+                    />
+                  </div>
+
+                  {/* Address */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      Adresse
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.address}
+                      onChange={(e) => handleChange('address', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="Douala, Cameroun"
+                    />
+                  </div>
+
+                  {/* Emergency Contact */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Contact d'urgence
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.emergency_contact}
+                      onChange={(e) => handleChange('emergency_contact', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="Nom du contact"
+                    />
+                  </div>
+
+                  {/* Emergency Phone */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tél. d'urgence
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.emergency_phone}
+                      onChange={(e) => handleChange('emergency_phone', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="+237 690 000 000"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Password fields for new users */}
             {!isEditing && (
