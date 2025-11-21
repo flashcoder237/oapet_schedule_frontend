@@ -21,6 +21,7 @@ type ToastContextType = {
   updateToast: (id: string, props: Partial<ToastProps>) => void;
   dismissToast: (id: string) => void;
   removeToast: (id: string) => void;
+  toast: (props: Omit<ToastProps, "id">) => void;
 };
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -72,8 +73,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id));
   };
 
+  // Alias for addToast
+  const toast = addToast;
+
   return (
-    <ToastContext.Provider value={{ toasts, addToast, updateToast, dismissToast, removeToast }}>
+    <ToastContext.Provider value={{ toasts, addToast, updateToast, dismissToast, removeToast, toast }}>
       {children}
     </ToastContext.Provider>
   );

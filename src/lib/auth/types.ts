@@ -25,6 +25,9 @@ export interface User {
   last_login: string | null;
   date_joined: string;
   profile: UserProfile | null;
+  role?: string;
+  teacher_id?: number;
+  student_id?: number;
 }
 
 export interface AuthCredentials {

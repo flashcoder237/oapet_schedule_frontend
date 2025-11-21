@@ -36,7 +36,16 @@ export default function Sidebar() {
       href: '/',
       icon: Home,
       description: 'Vue d\'ensemble',
-      allowTeacher: true
+      allowTeacher: true,
+      hideForTeacher: true // Les enseignants ont leur propre dashboard
+    },
+    {
+      name: 'Mon Tableau de bord',
+      href: '/teacher/dashboard',
+      icon: LayoutDashboard,
+      description: 'Mon espace enseignant',
+      allowTeacher: true,
+      teacherOnly: true // Seulement pour les enseignants
     },
     {
       name: 'Gestion des EDs',
@@ -125,8 +134,12 @@ export default function Sidebar() {
   // Filtrer la navigation selon le rôle
   const filteredNavigation = navigation.filter(item => {
     if (isTeacher()) {
+      // Pour les enseignants: afficher si allowTeacher ET pas hideForTeacher
+      if (item.hideForTeacher) return false;
       return item.allowTeacher;
     }
+    // Pour les admins: ne pas afficher les éléments teacherOnly
+    if (item.teacherOnly) return false;
     return true; // Admin/planificateur voient tout
   });
 

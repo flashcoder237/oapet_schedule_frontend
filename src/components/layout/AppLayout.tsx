@@ -46,7 +46,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
         <main className="flex-1 overflow-auto bg-background relative">
           {/* Content */}
-          <div className="relative z-10 p-6 h-full">
+          <div className="relative p-6 h-full">
             {children}
           </div>
         </main>

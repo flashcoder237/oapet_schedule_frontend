@@ -4,20 +4,17 @@ import { API_ENDPOINTS } from '../config';
 
 export interface StudentProfile {
   id: number;
-  user: {
+  user_details: {
     id: number;
     username: string;
     email: string;
     first_name: string;
     last_name: string;
+    full_name?: string;
   };
   student_id: string;
-  curriculum: {
-    id: number;
-    name: string;
-    code: string;
-    level: string;
-  };
+  curriculum_name: string;
+  curriculum?: number;
   current_level: string;
   entry_year: number;
   phone: string;

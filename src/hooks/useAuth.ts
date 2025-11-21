@@ -13,6 +13,15 @@ export interface AuthUser {
   is_staff: boolean;
   is_superuser: boolean;
   teacher_id?: number;
+  student_id?: number;
+  user_details?: {
+    id: number;
+    username: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    full_name?: string;
+  };
   profile?: {
     role: string;
     phone?: string;
