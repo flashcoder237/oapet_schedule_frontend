@@ -143,14 +143,14 @@ export default function StudentProfile() {
             {/* Photo de profil et infos de base */}
             <div className="flex items-start gap-6 mb-8 pb-8 border-b">
               <div className="w-24 h-24 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-                {profile?.user.first_name?.charAt(0)}{profile?.user.last_name?.charAt(0)}
+                {profile?.user_details.first_name?.charAt(0)}{profile?.user_details.last_name?.charAt(0)}
               </div>
               <div className="flex-1">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {profile?.user.first_name} {profile?.user.last_name}
+                  {profile?.user_details.first_name} {profile?.user_details.last_name}
                 </h2>
                 <p className="text-muted-foreground mt-1">
-                  {profile?.curriculum.name}
+                  {profile?.curriculum_name}
                 </p>
                 <div className="flex items-center gap-4 mt-3">
                   <Badge variant="outline" className="flex items-center gap-1">
@@ -184,7 +184,7 @@ export default function StudentProfile() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Nom d'utilisateur</p>
-                    <p className="font-medium">{profile?.user.username}</p>
+                    <p className="font-medium">{profile?.user_details.username}</p>
                   </div>
                 </div>
 
@@ -194,7 +194,7 @@ export default function StudentProfile() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="font-medium">{profile?.user.email}</p>
+                    <p className="font-medium">{profile?.user_details.email}</p>
                   </div>
                 </div>
 
@@ -214,7 +214,7 @@ export default function StudentProfile() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Filière</p>
-                    <p className="font-medium">{profile?.curriculum.code}</p>
+                    <p className="font-medium">{profile?.curriculum_name}</p>
                   </div>
                 </div>
               </div>

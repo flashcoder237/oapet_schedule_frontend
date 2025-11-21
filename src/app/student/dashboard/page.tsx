@@ -152,12 +152,15 @@ export default function StudentDashboard() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold">
-                  Bonjour, {profile?.user.first_name} {profile?.user.last_name}
+                  Bonjour, {profile?.user_details.first_name} {profile?.user_details.last_name}
                 </h1>
-                <p className="text-white/80 mt-1">
-                  {profile?.curriculum.name} - Niveau {profile?.current_level}
+                <p className="text-white/90 mt-1 font-medium">
+                  Votre classe: {profile?.curriculum_name}
                 </p>
-                <p className="text-white/70 text-sm mt-1">
+                <p className="text-white/80 text-sm mt-1">
+                  Niveau {profile?.current_level}
+                </p>
+                <p className="text-white/70 text-sm mt-0.5">
                   Matricule: {profile?.student_id}
                 </p>
               </div>
@@ -289,7 +292,7 @@ export default function StudentDashboard() {
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4" />
                         <span>
-                          {currentSession.teacher_details?.first_name} {currentSession.teacher_details?.last_name}
+                          {currentSession.teacher_details?.user_details?.first_name} {currentSession.teacher_details?.user_details?.last_name}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -331,7 +334,7 @@ export default function StudentDashboard() {
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4" />
                         <span>
-                          {nextSession.teacher_details?.first_name} {nextSession.teacher_details?.last_name}
+                          {nextSession.teacher_details?.user_details?.first_name} {nextSession.teacher_details?.user_details?.last_name}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -395,7 +398,7 @@ export default function StudentDashboard() {
                             <div className="flex items-center gap-2">
                               <User className="w-4 h-4" />
                               <span>
-                                {session.teacher_details?.first_name} {session.teacher_details?.last_name}
+                                {session.teacher_details?.user_details?.first_name} {session.teacher_details?.user_details?.last_name}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">

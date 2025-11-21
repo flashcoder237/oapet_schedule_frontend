@@ -12,15 +12,26 @@ import {
   MapPin
 } from 'lucide-react';
 import { studentService } from '@/lib/api/services/students';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-const TIME_SLOTS = Array.from({ length: 12 }, (_, i) => {
-  const hour = 8 + i;
-  return `${hour.toString().padStart(2, '0')}:00`;
-});
+
+// Mapping French day names to English API keys
+const DAY_MAPPING: Record<string, string> = {
+  'lundi': 'monday',
+  'mardi': 'tuesday',
+  'mercredi': 'wednesday',
+  'jeudi': 'thursday',
+  'vendredi': 'friday',
+  'samedi': 'saturday',
+};
+
+// Grid configuration
+const START_HOUR = 8;
+const END_HOUR = 20;
+const TOTAL_MINUTES = (END_HOUR - START_HOUR) * 60;
+const PIXELS_PER_MINUTE = 1.2; // 1.2 pixels per minute for better visibility
 
 export default function StudentSchedulePage() {
   const [weeklySchedule, setWeeklySchedule] = useState<any>(null);
@@ -66,12 +77,12 @@ export default function StudentSchedulePage() {
 
   const getCourseTypeColor = (type: string): string => {
     const colors: Record<string, string> = {
-      'CM': 'bg-blue-500',
-      'TD': 'bg-green-500',
-      'TP': 'bg-purple-500',
-      'TPE': 'bg-orange-500',
+      'CM': 'bg-blue-100 border-l-4 border-blue-500 text-blue-900',
+      'TD': 'bg-green-100 border-l-4 border-green-500 text-green-900',
+      'TP': 'bg-purple-100 border-l-4 border-purple-500 text-purple-900',
+      'TPE': 'bg-orange-100 border-l-4 border-orange-500 text-orange-900',
     };
-    return colors[type] || 'bg-gray-500';
+    return colors[type] || 'bg-gray-100 border-l-4 border-gray-500 text-gray-900';
   };
 
   const formatWeekRange = () => {
@@ -81,28 +92,43 @@ export default function StudentSchedulePage() {
     return `${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} - ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
   };
 
-  const getSessionsForDayAndTime = (day: string, timeSlot: string): any[] => {
-    if (!weeklySchedule?.sessions_by_day) return [];
-    const daySessions = weeklySchedule.sessions_by_day[day] || [];
-    const [targetHour] = timeSlot.split(':').map(Number);
+  // Get all sessions for a specific day
+  const getSessionsForDay = (frenchDay: string): any[] => {
+    if (!weeklySchedule?.sessions_by_day) {
+      return [];
+    }
 
-    return daySessions.filter((session: any) => {
-      const startTime = session.time_slot_details?.start_time;
-      if (!startTime) return false;
-      const [sessionHour] = startTime.split(':').map(Number);
-      return sessionHour === targetHour;
-    });
+    const englishDay = DAY_MAPPING[frenchDay.toLowerCase()];
+    if (!englishDay) {
+      return [];
+    }
+
+    return weeklySchedule.sessions_by_day[englishDay] ||
+           weeklySchedule.sessions_by_day[englishDay.charAt(0).toUpperCase() + englishDay.slice(1)] ||
+           [];
   };
 
-  const getSessionDuration = (session: any): number => {
+  // Calculate top position based on start time
+  const getSessionTopPosition = (session: any): number => {
+    const startTime = session.time_slot_details?.start_time;
+    if (!startTime) return 0;
+
+    const [hour, min] = startTime.split(':').map(Number);
+    const sessionStartMinutes = hour * 60 + min;
+    const gridStartMinutes = START_HOUR * 60;
+    return (sessionStartMinutes - gridStartMinutes) * PIXELS_PER_MINUTE;
+  };
+
+  // Calculate height based on duration
+  const getSessionHeight = (session: any): number => {
     const startTime = session.time_slot_details?.start_time;
     const endTime = session.time_slot_details?.end_time;
-    if (!startTime || !endTime) return 1;
+    if (!startTime || !endTime) return 60 * PIXELS_PER_MINUTE; // Default 1 hour
 
     const [startH, startM] = startTime.split(':').map(Number);
     const [endH, endM] = endTime.split(':').map(Number);
     const durationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
-    return Math.ceil(durationMinutes / 60);
+    return Math.max(durationMinutes * PIXELS_PER_MINUTE, 40); // Minimum 40px
   };
 
   if (loading) {
@@ -167,22 +193,22 @@ export default function StudentSchedulePage() {
             </div>
           </div>
 
-          {/* Stats */}
+          {/* Legend */}
           <div className="mt-4 flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500 rounded"></div>
+              <div className="w-4 h-4 bg-blue-100 border-l-4 border-blue-500 rounded-r"></div>
               <span className="text-sm text-gray-600">CM</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded"></div>
+              <div className="w-4 h-4 bg-green-100 border-l-4 border-green-500 rounded-r"></div>
               <span className="text-sm text-gray-600">TD</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-purple-500 rounded"></div>
+              <div className="w-4 h-4 bg-purple-100 border-l-4 border-purple-500 rounded-r"></div>
               <span className="text-sm text-gray-600">TP</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-orange-500 rounded"></div>
+              <div className="w-4 h-4 bg-orange-100 border-l-4 border-orange-500 rounded-r"></div>
               <span className="text-sm text-gray-600">TPE</span>
             </div>
             <div className="ml-auto">
@@ -196,85 +222,115 @@ export default function StudentSchedulePage() {
         {/* Schedule Grid */}
         <div className="flex-1 overflow-auto p-6">
           <div className="bg-white rounded-lg shadow-lg border overflow-hidden">
-            <div className="grid grid-cols-[80px_repeat(6,1fr)] min-w-[1200px]">
-              {/* Header Row - Days */}
-              <div className="bg-gray-50 border-b border-r p-3 font-semibold text-xs text-gray-600">
-                Horaire
+            <div className="grid grid-cols-7 gap-0" style={{ minWidth: '1000px' }}>
+              {/* Header Row - Time + Days */}
+              <div className="p-2 text-center text-xs font-medium text-gray-600 bg-gray-50 border-b border-r">
+                Heure
               </div>
-              {DAYS.map((day) => (
-                <div
-                  key={day}
-                  className="bg-gradient-to-br from-primary/5 to-primary/10 border-b border-r p-3 text-center font-semibold text-sm text-gray-900"
-                >
+              {DAYS.map(day => (
+                <div key={day} className="p-3 text-center text-sm font-semibold text-gray-900 bg-gradient-to-br from-primary/5 to-primary/10 border-b border-r">
                   {day}
                 </div>
               ))}
 
-              {/* Time Slots Rows */}
-              {TIME_SLOTS.map((timeSlot) => (
-                <React.Fragment key={timeSlot}>
-                  {/* Time Column */}
-                  <div className="bg-gray-50 border-b border-r p-3 text-xs text-gray-600 font-medium flex items-start">
-                    {timeSlot}
-                  </div>
+              {/* Time column + Day columns with absolute positioning */}
+              <div className="relative bg-gray-50 border-r" style={{ height: `${TOTAL_MINUTES * PIXELS_PER_MINUTE}px` }}>
+                {/* Hour markers */}
+                {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => {
+                  const hour = START_HOUR + i;
+                  return (
+                    <div
+                      key={hour}
+                      className="absolute left-0 right-0 text-xs px-2 py-1 text-gray-600 font-medium border-t border-gray-200"
+                      style={{ top: `${i * 60 * PIXELS_PER_MINUTE}px` }}
+                    >
+                      {hour.toString().padStart(2, '0')}:00
+                    </div>
+                  );
+                })}
+              </div>
 
-                  {/* Day Columns */}
-                  {DAYS.map((day) => {
-                    const sessions = getSessionsForDayAndTime(day.toLowerCase(), timeSlot);
-                    return (
+              {/* Day columns */}
+              {DAYS.map((day) => {
+                const sessions = getSessionsForDay(day);
+
+                return (
+                  <div
+                    key={day}
+                    className="relative border-r border-gray-200"
+                    style={{ height: `${TOTAL_MINUTES * PIXELS_PER_MINUTE}px` }}
+                  >
+                    {/* Hour grid lines */}
+                    {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
                       <div
-                        key={`${day}-${timeSlot}`}
-                        className="border-b border-r p-2 min-h-[80px] bg-white hover:bg-gray-50 transition-colors relative"
-                      >
-                        {sessions.map((session, idx) => {
-                          const duration = getSessionDuration(session);
-                          return (
-                            <motion.div
-                              key={session.id}
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: idx * 0.05 }}
-                              className={`
-                                ${getCourseTypeColor(session.course_details?.course_type)}
-                                text-white rounded-lg p-2 mb-2 shadow-sm hover:shadow-md transition-all cursor-pointer
-                                ${duration > 1 ? 'min-h-[160px]' : ''}
-                              `}
-                              style={{
-                                gridRow: duration > 1 ? `span ${duration}` : undefined
-                              }}
-                            >
-                              <div className="text-xs font-bold mb-1 flex items-center justify-between">
-                                <span className="truncate">{session.course_details?.name}</span>
-                                <Badge className="bg-white/20 text-white text-[10px] ml-1">
-                                  {session.course_details?.course_type}
-                                </Badge>
+                        key={i}
+                        className="absolute left-0 right-0 border-t border-gray-100"
+                        style={{ top: `${i * 60 * PIXELS_PER_MINUTE}px` }}
+                      />
+                    ))}
+
+                    {/* Half-hour grid lines */}
+                    {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
+                      <div
+                        key={`half-${i}`}
+                        className="absolute left-0 right-0 border-t border-gray-50"
+                        style={{ top: `${(i * 60 + 30) * PIXELS_PER_MINUTE}px` }}
+                      />
+                    ))}
+
+                    {/* Sessions */}
+                    {sessions.map((session, idx) => {
+                      const topPosition = getSessionTopPosition(session);
+                      const height = getSessionHeight(session);
+
+                      return (
+                        <motion.div
+                          key={session.id}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: idx * 0.02 }}
+                          className={`
+                            absolute left-1 right-1 z-10
+                            ${getCourseTypeColor(session.course_details?.course_type || session.session_type)}
+                            rounded-r shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden
+                          `}
+                          style={{
+                            top: `${topPosition}px`,
+                            height: `${height}px`,
+                          }}
+                        >
+                          <div className="p-2 h-full flex flex-col">
+                            <div className="text-xs font-bold mb-1 flex items-center justify-between">
+                              <span className="truncate">{session.course_details?.name}</span>
+                              <Badge variant="outline" className="text-[9px] ml-1 border-current flex-shrink-0">
+                                {session.course_details?.course_type || session.session_type}
+                              </Badge>
+                            </div>
+                            <div className="space-y-0.5 text-[10px] opacity-80 flex-1">
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3 flex-shrink-0" />
+                                <span>
+                                  {session.time_slot_details?.start_time?.slice(0, 5)} - {session.time_slot_details?.end_time?.slice(0, 5)}
+                                </span>
                               </div>
-                              <div className="space-y-1 text-[10px] text-white/90">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  <span>
-                                    {session.time_slot_details?.start_time} - {session.time_slot_details?.end_time}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1 truncate">
-                                  <User className="w-3 h-3 flex-shrink-0" />
-                                  <span className="truncate">
-                                    {session.teacher_details?.first_name?.[0]}. {session.teacher_details?.last_name}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1 truncate">
-                                  <MapPin className="w-3 h-3 flex-shrink-0" />
-                                  <span className="truncate">{session.room_details?.name}</span>
-                                </div>
+                              <div className="flex items-center gap-1 truncate">
+                                <User className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">
+                                  {session.teacher_details?.user_details?.first_name?.[0]}. {session.teacher_details?.user_details?.last_name}
+                                </span>
                               </div>
-                            </motion.div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
+                              <div className="flex items-center gap-1 truncate">
+                                <MapPin className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">{session.room_details?.name}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
