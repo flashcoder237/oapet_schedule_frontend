@@ -47,7 +47,7 @@ export default function Sidebar() {
     },
     {
       name: 'Tableau de bord',
-      href: '/admin/dashboard',
+      href: '/manager/dashboard',
       icon: BarChart3,
       description: 'Statistiques et analyses',
       allowTeacher: false // Seulement pour les admins
