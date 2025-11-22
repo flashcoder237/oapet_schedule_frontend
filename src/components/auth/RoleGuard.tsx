@@ -21,11 +21,11 @@ export default function RoleGuard({
   requireAuth = true,
   fallback
 }: RoleGuardProps) {
-  const { user, loading, isAuthenticated, isAdmin, hasRole } = useAuth();
+  const { user, isLoading, isAuthenticated, isAdmin, hasRole } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (loading) return;
+    if (isLoading) return;
 
     // Vérifier l'authentification
     if (requireAuth && !isAuthenticated) {
@@ -44,9 +44,9 @@ export default function RoleGuard({
       router.push('/dashboard');
       return;
     }
-  }, [loading, isAuthenticated, user, requireAuth, requireAdmin, allowedRoles]);
+  }, [isLoading, isAuthenticated, user, requireAuth, requireAdmin, allowedRoles]);
 
-  if (loading) {
+  if (isLoading) {
     return <PageLoading message="Vérification des permissions..." />;
   }
 

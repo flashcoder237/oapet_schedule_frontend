@@ -255,7 +255,7 @@ export default function StudentSidebar() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">
-                    {user?.user_details?.first_name || user?.first_name} {user?.user_details?.last_name || user?.last_name}
+                    {user?.first_name} {user?.last_name}
                   </p>
                   <p className="text-xs text-primary-foreground/60">Étudiant</p>
                 </div>

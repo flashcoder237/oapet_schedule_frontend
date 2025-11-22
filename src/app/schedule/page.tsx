@@ -69,7 +69,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/a
 
 export default function SchedulePage() {
   // Hook d'authentification et permissions
-  const { user, loading: authLoading, isTeacher, isStudent, canManageSchedules } = useAuth();
+  const { user, isLoading: authLoading, isTeacher, isStudent, canManageSchedules } = useAuth();
   const isReadOnly = isTeacher() || isStudent();
   const searchParams = useSearchParams();
   const router = useRouter();

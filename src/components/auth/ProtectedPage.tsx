@@ -1,4 +1,3 @@
-// src/components/auth/ProtectedPage.tsx
 'use client';
 
 import { useEffect } from 'react';
@@ -19,11 +18,11 @@ export default function ProtectedPage({
   requireAdmin = false,
   requireManageSchedules = false
 }: ProtectedPageProps) {
-  const { user, isTeacher, isAdmin, canManageSchedules, loading } = useAuth();
+  const { user, isTeacher, isAdmin, canManageSchedules, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (loading) return;
+    if (isLoading) return;
 
     if (!user) {
       router.push('/');
@@ -47,9 +46,9 @@ export default function ProtectedPage({
       router.push('/schedule');
       return;
     }
-  }, [user, loading, allowTeacher, requireAdmin, requireManageSchedules, router, isTeacher, isAdmin, canManageSchedules]);
+  }, [user, isLoading, allowTeacher, requireAdmin, requireManageSchedules, router, isTeacher, isAdmin, canManageSchedules]);
 
-  if (loading) {
+  if (isLoading) {
     return <PageLoading message="Vérification des permissions..." />;
   }
 
