@@ -28,6 +28,7 @@ export default function TeacherDashboardPage() {
   const [profile, setProfile] = useState<TeacherProfile | null>(null);
   const [stats, setStats] = useState<TeacherStats | null>(null);
   const [todaySessions, setTodaySessions] = useState<any[]>([]);
+  const [upcomingSession, setUpcomingSession] = useState<any | null>(null);
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [teacherId, setTeacherId] = useState<number | null>(null);
@@ -74,22 +75,25 @@ export default function TeacherDashboardPage() {
 
       setTeacherId(currentTeacherId);
 
-      const [profileData, statsData, todayData, coursesData] = await Promise.all([
+      const [profileData, statsData, todayData, coursesData, upcomingData] = await Promise.all([
         teacherService.getMyProfile(currentTeacherId),
         teacherService.getMyStats(currentTeacherId),
         teacherService.getTodaySchedule(currentTeacherId),
-        teacherService.getMyCourses(currentTeacherId)
+        teacherService.getMyCourses(currentTeacherId),
+        teacherService.getNextUpcomingSession(currentTeacherId)
       ]);
 
       console.log('Teacher ID:', currentTeacherId);
       console.log('Teacher profile:', profileData);
       console.log('Teacher stats:', statsData);
       console.log('Today sessions:', todayData);
+      console.log('Upcoming session:', upcomingData);
       console.log('Courses:', coursesData);
 
       setProfile(profileData);
       setStats(statsData);
       setTodaySessions(todayData);
+      setUpcomingSession(upcomingData);
       setCourses(coursesData);
     } catch (error) {
       console.error('Erreur chargement donnees enseignant:', error);
@@ -362,10 +366,39 @@ export default function TeacherDashboardPage() {
                     </div>
                   </div>
                 </div>
+              ) : upcomingSession ? (
+                <div className={`p-4 rounded-lg border-l-4 ${getCourseTypeColor(upcomingSession.session_type || upcomingSession.course_details?.course_type)}`}>
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-bold text-lg">
+                      {upcomingSession.course_details?.name}
+                    </h3>
+                    <Badge className={getCourseTypeColor(upcomingSession.session_type || upcomingSession.course_details?.course_type)}>
+                      {upcomingSession.session_type || upcomingSession.course_details?.course_type}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      <span className="font-medium text-primary">
+                        {upcomingSession.upcoming_date ? new Date(upcomingSession.upcoming_date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : ''}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      <span>
+                        {(upcomingSession.specific_start_time || upcomingSession.time_slot_details?.start_time)?.slice(0, 5)} - {(upcomingSession.specific_end_time || upcomingSession.time_slot_details?.end_time)?.slice(0, 5)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      <span>{upcomingSession.room_details?.name}</span>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Calendar className="w-12 h-12 mx-auto mb-3 text-blue-300" />
-                  <p>Plus de cours aujourd'hui</p>
+                  <p>Aucun cours prevu prochainement</p>
                 </div>
               )}
             </Card>
@@ -441,7 +474,18 @@ export default function TeacherDashboardPage() {
               <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="w-16 h-16 mx-auto mb-3 opacity-30" />
                 <p>Aucun cours prevu aujourd'hui</p>
-                <p className="text-sm mt-1">Profitez de votre journee !</p>
+                {(() => {
+                  const day = new Date().getDay();
+                  if (day === 0 || day === 6) {
+                    return <p className="text-sm mt-1">Bon week-end !</p>;
+                  }
+                  return <p className="text-sm mt-1">Profitez de votre journee !</p>;
+                })()}
+                {upcomingSession && (
+                  <p className="text-sm mt-3 text-primary font-medium">
+                    Prochain cours: {upcomingSession.upcoming_date ? new Date(upcomingSession.upcoming_date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : ''}
+                  </p>
+                )}
               </div>
             )}
           </Card>

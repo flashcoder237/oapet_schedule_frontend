@@ -151,6 +151,55 @@ export const teacherService = {
   },
 
   /**
+   * Récupère le prochain cours à venir pour un enseignant (dans les 7 prochains jours)
+   */
+  async getNextUpcomingSession(teacherId: number): Promise<any | null> {
+    const today = new Date();
+
+    // Chercher dans les 7 prochains jours
+    for (let i = 0; i <= 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+
+      const url = `/schedules/sessions/?teacher=${teacherId}&date=${dateStr}`;
+      const response = await apiClient.get<any>(url);
+      const sessions = response.results || response || [];
+
+      if (sessions.length > 0) {
+        // Trier par heure de début
+        const sortedSessions = sessions.sort((a: any, b: any) => {
+          const aTime = a.specific_start_time || a.time_slot_details?.start_time || '';
+          const bTime = b.specific_start_time || b.time_slot_details?.start_time || '';
+          return aTime.localeCompare(bTime);
+        });
+
+        // Si c'est aujourd'hui, filtrer les sessions passées
+        if (i === 0) {
+          const now = new Date();
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+          const upcomingSession = sortedSessions.find((session: any) => {
+            const startTime = session.specific_start_time || session.time_slot_details?.start_time;
+            if (!startTime) return false;
+            const [h, m] = startTime.split(':').map(Number);
+            return h * 60 + m > currentMinutes;
+          });
+
+          if (upcomingSession) {
+            return { ...upcomingSession, upcoming_date: dateStr };
+          }
+        } else {
+          // Pour les jours futurs, retourner la première session
+          return { ...sortedSessions[0], upcoming_date: dateStr };
+        }
+      }
+    }
+
+    return null;
+  },
+
+  /**
    * Récupère les cours assignés à un enseignant
    */
   async getMyCourses(teacherId: number): Promise<any[]> {

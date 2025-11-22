@@ -10,18 +10,18 @@ import {
   Calendar,
   Building,
   AlertTriangle,
-  TrendingUp,
   Clock,
   CheckCircle,
-  XCircle,
   Activity,
   BarChart3,
   Target,
   Zap,
-  ChevronRight,
   RefreshCw,
   GraduationCap,
-  UserCog
+  UserCog,
+  ChevronRight,
+  TrendingUp,
+  ArrowUpRight
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -97,375 +97,296 @@ export default function AdminDashboardPage() {
     setRefreshing(false);
   };
 
-  const getHealthColor = (status: string) => {
-    switch (status) {
-      case 'healthy': return 'text-green-500';
-      case 'warning': return 'text-yellow-500';
-      case 'critical': return 'text-red-500';
-      default: return 'text-gray-500';
-    }
-  };
-
-  const getHealthBg = (status: string) => {
-    switch (status) {
-      case 'healthy': return 'bg-green-100';
-      case 'warning': return 'bg-yellow-100';
-      case 'critical': return 'bg-red-100';
-      default: return 'bg-gray-100';
-    }
-  };
-
   const quickActions = [
-    { title: 'Gestion des EDs', href: '/gestion-emplois', icon: Calendar, color: 'bg-blue-500' },
-    { title: 'Cours', href: '/courses', icon: BookOpen, color: 'bg-green-500' },
-    { title: 'Utilisateurs', href: '/users', icon: Users, color: 'bg-purple-500' },
-    { title: 'Salles', href: '/rooms', icon: MapPin, color: 'bg-orange-500' },
-    { title: 'Classes', href: '/gestion-classes', icon: GraduationCap, color: 'bg-pink-500' },
-    { title: 'Préférences', href: '/teachers/preferences', icon: UserCog, color: 'bg-indigo-500' },
+    { title: 'Gestion des EDs', href: '/gestion-emplois', icon: Calendar, description: 'Emplois du temps' },
+    { title: 'Cours', href: '/courses', icon: BookOpen, description: 'Gestion des cours' },
+    { title: 'Utilisateurs', href: '/users', icon: Users, description: 'Gestion des comptes' },
+    { title: 'Salles', href: '/rooms', icon: MapPin, description: 'Espaces disponibles' },
+    { title: 'Classes', href: '/gestion-classes', icon: GraduationCap, description: 'Gestion des classes' },
+    { title: 'Préférences', href: '/teachers/preferences', icon: UserCog, description: 'Disponibilités' },
   ];
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Chargement du tableau de bord...</p>
+          <div className="w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground text-sm">Chargement...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+    <div className="min-h-screen bg-muted/30">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <BarChart3 className="w-8 h-8 text-primary" />
-              Tableau de Bord Administrateur
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Bienvenue, {user?.first_name || user?.username} - Vue d'ensemble du système
-            </p>
+      <div className="bg-card border-b">
+        <div className="px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-foreground">
+                Tableau de Bord
+              </h1>
+              <p className="text-muted-foreground text-sm mt-0.5">
+                Bienvenue, {user?.first_name || user?.username}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Actualiser
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            Actualiser
-          </Button>
         </div>
       </div>
 
-      {/* Health Score Card */}
-      {health && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
-          <Card className={`${getHealthBg(health.status)} border-none`}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`w-16 h-16 rounded-full ${getHealthBg(health.status)} flex items-center justify-center`}>
-                    {health.status === 'healthy' ? (
-                      <CheckCircle className={`w-10 h-10 ${getHealthColor(health.status)}`} />
-                    ) : health.status === 'warning' ? (
-                      <AlertTriangle className={`w-10 h-10 ${getHealthColor(health.status)}`} />
-                    ) : (
-                      <XCircle className={`w-10 h-10 ${getHealthColor(health.status)}`} />
-                    )}
+      <div className="p-6 space-y-6">
+        {/* Health + Stats Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Health Score */}
+          {health && (
+            <Card className="lg:col-span-1">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    health.status === 'healthy' ? 'bg-emerald-100 text-emerald-600' :
+                    health.status === 'warning' ? 'bg-amber-100 text-amber-600' :
+                    'bg-red-100 text-red-600'
+                  }`}>
+                    <CheckCircle className="w-5 h-5" />
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      Score de santé : {health.health_score}%
-                    </h2>
-                    <p className="text-gray-600">
-                      {health.status === 'healthy' && 'Le système fonctionne normalement'}
-                      {health.status === 'warning' && 'Quelques points d\'attention à vérifier'}
-                      {health.status === 'critical' && 'Des actions urgentes sont nécessaires'}
-                    </p>
+                  <div className='mt-3'>
+                    <p className="text-sm text-muted-foreground">Santé système</p>
+                    <p className="text-2xl font-semibold">{health.health_score}%</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="text-center p-3 bg-white/50 rounded-lg">
-                    <p className="text-gray-500">Couverture depts</p>
-                    <p className="text-xl font-bold">{health.metrics.department_coverage}%</p>
-                  </div>
-                  <div className="text-center p-3 bg-white/50 rounded-lg">
-                    <p className="text-gray-500">Taux conflits</p>
-                    <p className="text-xl font-bold">{health.metrics.conflict_rate}%</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Stats Grid */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1 }}
-          >
-            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-blue-100 text-sm">Étudiants</p>
-                    <p className="text-2xl font-bold">{stats.overview.total_students.toLocaleString()}</p>
-                  </div>
-                  <Users className="w-8 h-8 text-blue-200" />
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      health.status === 'healthy' ? 'bg-emerald-500' :
+                      health.status === 'warning' ? 'bg-amber-500' :
+                      'bg-red-500'
+                    }`}
+                    style={{ width: `${health.health_score}%` }}
+                  />
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.15 }}
-          >
-            <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-none">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-green-100 text-sm">Cours</p>
-                    <p className="text-2xl font-bold">{stats.overview.total_courses}</p>
-                  </div>
-                  <BookOpen className="w-8 h-8 text-green-200" />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-none">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-purple-100 text-sm">Enseignants</p>
-                    <p className="text-2xl font-bold">{stats.overview.total_teachers}</p>
-                  </div>
-                  <UserCog className="w-8 h-8 text-purple-200" />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.25 }}
-          >
-            <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-none">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-orange-100 text-sm">Salles</p>
-                    <p className="text-2xl font-bold">{stats.overview.total_rooms}</p>
-                  </div>
-                  <MapPin className="w-8 h-8 text-orange-200" />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card className="bg-gradient-to-br from-red-500 to-red-600 text-white border-none">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-red-100 text-sm">Plannings</p>
-                    <p className="text-2xl font-bold">{stats.overview.active_schedules}</p>
-                  </div>
-                  <Calendar className="w-8 h-8 text-red-200" />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.35 }}
-          >
-            <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white border-none">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-indigo-100 text-sm">Sessions</p>
-                    <p className="text-2xl font-bold">{stats.overview.weekly_events}</p>
-                  </div>
-                  <Activity className="w-8 h-8 text-indigo-200" />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Alerts Row */}
-      {stats && (stats.overview.unresolved_conflicts > 0 || stats.alerts.schedules_pending_approval > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {stats.overview.unresolved_conflicts > 0 && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-            >
-              <Link href="/schedules/conflicts">
-                <Card className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white border-none cursor-pointer hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-yellow-100 text-sm">Conflits à résoudre</p>
-                        <p className="text-2xl font-bold">{stats.overview.unresolved_conflicts}</p>
-                        {stats.overview.critical_conflicts > 0 && (
-                          <Badge variant="destructive" className="mt-1 bg-red-600">
-                            {stats.overview.critical_conflicts} critique(s)
-                          </Badge>
-                        )}
-                      </div>
-                      <AlertTriangle className="w-8 h-8 text-yellow-200" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            </motion.div>
           )}
 
-          {stats.alerts.schedules_pending_approval > 0 && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <Link href="/gestion-emplois">
-                <Card className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white border-none cursor-pointer hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-cyan-100 text-sm">En attente de publication</p>
-                        <p className="text-2xl font-bold">{stats.alerts.schedules_pending_approval}</p>
-                      </div>
-                      <Clock className="w-8 h-8 text-cyan-200" />
+          {/* Key Stats */}
+          {stats && (
+            <>
+              <Card>
+                <CardContent className="mt-3 p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Étudiants</p>
+                      <p className="text-2xl font-semibold mt-1">{stats.overview.total_students.toLocaleString()}</p>
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            </motion.div>
-          )}
-
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="bg-gradient-to-br from-teal-500 to-teal-600 text-white border-none">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-teal-100 text-sm">Taux d'occupation salles</p>
-                    <p className="text-2xl font-bold">{stats.overview.occupancy_rate}%</p>
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-primary" />
+                    </div>
                   </div>
-                  <Target className="w-8 h-8 text-teal-200" />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="mt-3 p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Enseignants</p>
+                      <p className="text-2xl font-semibold mt-1">{stats.overview.total_teachers}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <UserCog className="w-5 h-5 text-primary" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="mt-3 p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Cours actifs</p>
+                      <p className="text-2xl font-semibold mt-1">{stats.overview.total_courses}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-primary" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
-      )}
 
-      {/* Quick Actions & Distributions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="lg:col-span-2"
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-yellow-500" />
-                Accès Rapides
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {quickActions.map((action, index) => (
-                  <Link key={action.href} href={action.href}>
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="p-4 rounded-lg border border-border hover:shadow-md transition-all cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${action.color} text-white`}>
-                          <action.icon className="w-5 h-5" />
-                        </div>
-                        <span className="font-medium group-hover:text-primary transition-colors">
-                          {action.title}
-                        </span>
-                      </div>
-                    </motion.div>
-                  </Link>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Sessions by Type */}
-        {stats && stats.distributions.sessions_by_type.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
+        {/* Secondary Stats */}
+        {stats && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-blue-500" />
-                  Sessions par Type
-                </CardTitle>
+              <CardContent className="mt-2 p-4">
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Salles</p>
+                    <p className="text-lg font-medium">{stats.overview.total_rooms}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="mt-2 p-4">
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Plannings</p>
+                    <p className="text-lg font-medium">{stats.overview.active_schedules}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="mt-2 p-4">
+                <div className="flex items-center gap-3">
+                  <Activity className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Sessions</p>
+                    <p className="text-lg font-medium">{stats.overview.weekly_events}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="mt-2 
+              p-4">
+                <div className="flex items-center gap-3">
+                  <Target className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Occupation</p>
+                    <p className="text-lg font-medium">{stats.overview.occupancy_rate}%</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Alerts */}
+        {stats && (stats.overview.unresolved_conflicts > 0 || stats.alerts.schedules_pending_approval > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {stats.overview.unresolved_conflicts > 0 && (
+              <Link href="/schedules/conflicts">
+                <Card className="border-amber-200 bg-amber-50/50 hover:bg-amber-50 transition-colors cursor-pointer">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center">
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-amber-900">Conflits à résoudre</p>
+                          <p className="text-xs text-amber-700">{stats.overview.critical_conflicts} critique(s)</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-semibold text-amber-900">{stats.overview.unresolved_conflicts}</span>
+                        <ChevronRight className="w-4 h-4 text-amber-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            )}
+
+            {stats.alerts.schedules_pending_approval > 0 && (
+              <Link href="/gestion-emplois">
+                <Card className="border-blue-200 bg-blue-50/50 hover:bg-blue-50 transition-colors cursor-pointer">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center">
+                          <Clock className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">En attente</p>
+                          <p className="text-xs text-blue-700">Plannings non publiés</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-semibold text-blue-900">{stats.alerts.schedules_pending_approval}</span>
+                        <ChevronRight className="w-4 h-4 text-blue-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Quick Actions */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-medium">Accès rapides</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {quickActions.map((action) => (
+                    <Link key={action.href} href={action.href}>
+                      <div className="p-3 rounded-lg border hover:border-primary/30 hover:bg-muted/50 transition-all group cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                            <action.icon className="w-4 h-4 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{action.title}</p>
+                            <p className="text-xs text-muted-foreground truncate">{action.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sessions by Type */}
+          {stats && stats.distributions.sessions_by_type.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-medium">Sessions par type</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {stats.distributions.sessions_by_type.map((item, index) => {
+                  {stats.distributions.sessions_by_type.slice(0, 4).map((item, index) => {
                     const total = stats.distributions.sessions_by_type.reduce((sum, i) => sum + i.count, 0);
                     const percentage = total > 0 ? Math.round((item.count / total) * 100) : 0;
-                    const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500'];
 
                     return (
-                      <div key={item.session_type} className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="font-medium">{item.session_type || 'Non défini'}</span>
-                          <span className="text-muted-foreground">{item.count} ({percentage}%)</span>
+                      <div key={item.session_type || index}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-muted-foreground">{item.session_type || 'Autre'}</span>
+                          <span className="font-medium">{item.count}</span>
                         </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${percentage}%` }}
-                            transition={{ delay: 0.6 + index * 0.1, duration: 0.5 }}
-                            className={`h-full ${colors[index % colors.length]} rounded-full`}
+                            transition={{ delay: 0.3 + index * 0.1, duration: 0.4 }}
+                            className="h-full bg-primary/70 rounded-full"
                           />
                         </div>
                       </div>
@@ -474,46 +395,33 @@ export default function AdminDashboardPage() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
-        )}
-      </div>
+          )}
+        </div>
 
-      {/* Teachers by Department */}
-      {stats && stats.distributions.teachers_by_department.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mt-6"
-        >
+        {/* Departments */}
+        {stats && stats.distributions.teachers_by_department.length > 0 && (
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building className="w-5 h-5 text-purple-500" />
-                Enseignants par Département
-              </CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-medium">Enseignants par département</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                 {stats.distributions.teachers_by_department.slice(0, 6).map((dept, index) => (
-                  <motion.div
+                  <div
                     key={dept.department__code || index}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.7 + index * 0.05 }}
-                    className="p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg text-center"
+                    className="p-3 bg-muted/50 rounded-lg text-center"
                   >
-                    <p className="text-2xl font-bold text-primary">{dept.count}</p>
+                    <p className="text-xl font-semibold text-primary">{dept.count}</p>
                     <p className="text-xs text-muted-foreground truncate" title={dept.department__name}>
-                      {dept.department__code || dept.department__name?.slice(0, 10)}
+                      {dept.department__code || '—'}
                     </p>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </CardContent>
           </Card>
-        </motion.div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

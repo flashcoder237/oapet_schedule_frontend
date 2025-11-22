@@ -1,9 +1,10 @@
 // src/components/search/SmartSearch.tsx
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import { useRouter } from 'next/navigation';
+import {
   Search,
   Filter,
   X,
@@ -11,63 +12,26 @@ import {
   History,
   TrendingUp,
   Star,
-  Hash,
+  Tag,
   User,
   MapPin,
   BookOpen,
   Calendar,
   Building,
-  Tag,
-  Zap,
-  Brain,
-  Target,
-  Compass,
-  Eye,
+  Users,
   ArrowRight,
-  ChevronDown,
-  Settings,
   Sparkles,
   Lightbulb,
-  AlertCircle,
-  CheckCircle,
-  Info,
   HelpCircle,
   FileText,
-  Database,
   BarChart3,
-  Users,
-  Globe,
-  Shield,
-  Layers,
-  Grid3x3,
   List,
-  SortAsc,
-  SortDesc,
+  Grid3x3,
   RefreshCw
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { mlService } from '@/lib/api/services/ml';
-
-interface SearchResult {
-  id: string;
-  title: string;
-  description: string;
-  type: 'course' | 'teacher' | 'room' | 'schedule' | 'student' | 'department';
-  category: string;
-  relevance: number;
-  metadata: Record<string, any>;
-  lastAccessed?: Date;
-  isFavorite?: boolean;
-}
-
-interface SearchSuggestion {
-  id: string;
-  text: string;
-  type: 'recent' | 'popular' | 'suggestion' | 'filter';
-  count?: number;
-  category?: string;
-}
+import { searchService, SearchResult, SearchSuggestion, SearchType } from '@/lib/api/services/search';
 
 interface SmartSearchProps {
   placeholder?: string;
@@ -76,7 +40,6 @@ interface SmartSearchProps {
   showFilters?: boolean;
   showSuggestions?: boolean;
   showHistory?: boolean;
-  data?: SearchResult[];
   className?: string;
 }
 
@@ -87,17 +50,18 @@ export default function SmartSearch({
   showFilters = true,
   showSuggestions = true,
   showHistory = true,
-  data = [],
   className = ""
 }: SmartSearchProps) {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(false);
+  const [userRole, setUserRole] = useState<string>('');
   const [filters, setFilters] = useState({
-    type: 'all',
+    type: 'all' as SearchType,
     department: 'all',
     level: 'all',
     status: 'all',
@@ -111,96 +75,92 @@ export default function SmartSearch({
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Les données viennent maintenant des props uniquement
+  // Charger l'historique depuis localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('search_history');
+      if (saved) {
+        setSearchHistory(JSON.parse(saved));
+      }
+    }
+  }, []);
 
-  // Chargement des suggestions depuis l'API IA
-  const loadSuggestions = async (searchQuery?: string) => {
+  // Charger les suggestions initiales
+  const loadSuggestions = useCallback(async (searchQuery?: string) => {
     try {
-      setIsLoading(true);
-      const response = await mlService.getSearchSuggestions(searchQuery, 8);
-      
-      const aiSuggestions: SearchSuggestion[] = response.suggestions.map((item, index) => ({
-        id: `ai-${index}`,
-        text: item.text,
-        type: item.type as 'recent' | 'popular' | 'suggestion' | 'filter',
-        category: item.category,
-        count: Math.floor(Math.random() * 50) + 1 // Simulation du count
-      }));
-      
-      setSuggestions(aiSuggestions);
+      const response = await searchService.getSuggestions(searchQuery);
+      setSuggestions(response.suggestions);
+      if (response.user_role) {
+        setUserRole(response.user_role);
+      }
     } catch (error) {
-      console.error('Erreur lors du chargement des suggestions IA:', error);
-      // Fallback sur des suggestions par défaut en cas d'erreur
+      console.error('Erreur lors du chargement des suggestions:', error);
       setSuggestions([]);
+    }
+  }, []);
+
+  // Recherche via API
+  const performSearch = useCallback(async (searchQuery: string) => {
+    if (!searchQuery || searchQuery.length < 2) {
+      setResults([]);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await searchService.search(searchQuery, filters.type, 20);
+
+      // Tri côté client si nécessaire
+      let sortedResults = [...response.results];
+      switch (sortBy) {
+        case 'relevance':
+          sortedResults.sort((a, b) => b.relevance - a.relevance);
+          break;
+        case 'name':
+          sortedResults.sort((a, b) => a.title.localeCompare(b.title));
+          break;
+        case 'date':
+          // Garder l'ordre original pour le moment
+          break;
+      }
+
+      setResults(sortedResults);
+      if (response.user_role) {
+        setUserRole(response.user_role);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la recherche:', error);
+      setResults([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters.type, sortBy]);
 
-  // Simulation de recherche
+  // Debounced search
   useEffect(() => {
-    if (query.length > 0) {
-      setIsLoading(true);
-      
-      // Recherche dans les données fournies uniquement
-      const searchTimeout = setTimeout(() => {
-        const filtered = data.filter(item => 
-          item.title.toLowerCase().includes(query.toLowerCase()) ||
-          item.description.toLowerCase().includes(query.toLowerCase()) ||
-          Object.values(item.metadata).some(value => 
-            String(value).toLowerCase().includes(query.toLowerCase())
-          )
-        );
-
-        // Application des filtres
-        const filteredResults = filtered.filter(item => {
-          if (filters.type !== 'all' && item.type !== filters.type) return false;
-          if (filters.department !== 'all' && item.metadata.department !== filters.department) return false;
-          if (filters.level !== 'all' && item.metadata.level !== filters.level) return false;
-          return true;
-        });
-
-        // Tri des résultats
-        const sortedResults = filteredResults.sort((a, b) => {
-          switch (sortBy) {
-            case 'relevance':
-              return b.relevance - a.relevance;
-            case 'date':
-              return new Date(b.lastAccessed || 0).getTime() - new Date(a.lastAccessed || 0).getTime();
-            case 'name':
-              return a.title.localeCompare(b.title);
-            default:
-              return 0;
-          }
-        });
-
-        setResults(sortedResults);
-        setIsLoading(false);
+    if (query.length >= 2) {
+      const debounceTimeout = setTimeout(() => {
+        performSearch(query);
       }, 300);
-
-      return () => clearTimeout(searchTimeout);
+      return () => clearTimeout(debounceTimeout);
     } else {
       setResults([]);
-      setIsLoading(false);
     }
-  }, [query, filters, sortBy, data]);
+  }, [query, performSearch]);
 
-  // Gestion des suggestions IA
+  // Charger suggestions au focus ou quand query change
   useEffect(() => {
     if (showSuggestions) {
       if (query.length === 0) {
-        // Charger les suggestions populaires
         loadSuggestions();
       } else if (query.length >= 2) {
-        // Charger les suggestions basées sur la query
         const debounceTimeout = setTimeout(() => {
           loadSuggestions(query);
         }, 300);
-        
         return () => clearTimeout(debounceTimeout);
       }
     }
-  }, [query, showSuggestions]);
+  }, [query, showSuggestions, loadSuggestions]);
 
   // Gestion du clavier
   useEffect(() => {
@@ -210,7 +170,7 @@ export default function SmartSearch({
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          setSelectedIndex(prev => 
+          setSelectedIndex(prev =>
             prev < results.length - 1 ? prev + 1 : prev
           );
           break;
@@ -260,25 +220,32 @@ export default function SmartSearch({
   const handleSearch = () => {
     if (query.trim()) {
       // Ajouter à l'historique
-      setSearchHistory(prev => {
-        const updated = [query, ...prev.filter(h => h !== query)].slice(0, 10);
-        return updated;
-      });
-      
+      const updated = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10);
+      setSearchHistory(updated);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('search_history', JSON.stringify(updated));
+      }
+
       onSearch?.(query, filters);
       setIsOpen(false);
     }
   };
 
   const handleResultClick = (result: SearchResult) => {
-    onResultClick?.(result);
+    if (onResultClick) {
+      onResultClick(result);
+    } else {
+      // Navigation par défaut
+      const url = searchService.getResultUrl(result);
+      router.push(url);
+    }
     setIsOpen(false);
     setQuery('');
   };
 
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
     setQuery(suggestion.text);
-    handleSearch();
+    performSearch(suggestion.text);
   };
 
   const clearQuery = () => {
@@ -321,6 +288,26 @@ export default function SmartSearch({
     }
   };
 
+  // Filtres disponibles selon le rôle
+  const getAvailableTypes = (): { value: SearchType; label: string }[] => {
+    const baseTypes = [
+      { value: 'all' as SearchType, label: 'Tous' },
+      { value: 'course' as SearchType, label: 'Cours' },
+      { value: 'teacher' as SearchType, label: 'Enseignants' },
+      { value: 'room' as SearchType, label: 'Salles' },
+      { value: 'schedule' as SearchType, label: 'Plannings' },
+    ];
+
+    if (userRole === 'admin') {
+      baseTypes.push(
+        { value: 'student' as SearchType, label: 'Étudiants' },
+        { value: 'department' as SearchType, label: 'Départements' }
+      );
+    }
+
+    return baseTypes;
+  };
+
   return (
     <div ref={searchRef} className={`relative ${className}`}>
       {/* Barre de recherche principale */}
@@ -328,7 +315,7 @@ export default function SmartSearch({
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <Search className="h-4 w-4 text-muted-foreground" />
         </div>
-        
+
         <input
           ref={inputRef}
           type="text"
@@ -338,7 +325,7 @@ export default function SmartSearch({
           placeholder={placeholder}
           className="block w-full pl-10 pr-10 py-3 border border-border rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
         />
-        
+
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 gap-2">
           {query && (
             <button
@@ -348,7 +335,7 @@ export default function SmartSearch({
               <X className="h-4 w-4" />
             </button>
           )}
-          
+
           {showFilters && (
             <button
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -380,17 +367,15 @@ export default function SmartSearch({
                     </label>
                     <select
                       value={filters.type}
-                      onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
+                      onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value as SearchType }))}
                       className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
                     >
-                      <option value="all">Tous</option>
-                      <option value="course">Cours</option>
-                      <option value="teacher">Enseignants</option>
-                      <option value="room">Salles</option>
-                      <option value="schedule">Plannings</option>
+                      {getAvailableTypes().map(type => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">
                       Département
@@ -406,7 +391,7 @@ export default function SmartSearch({
                       <option value="Dentaire">Dentaire</option>
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">
                       Niveau
@@ -427,7 +412,7 @@ export default function SmartSearch({
                       <option value="D3">D3</option>
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">
                       Tri
@@ -499,7 +484,7 @@ export default function SmartSearch({
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                     <span className="ml-2 text-sm text-muted-foreground">Recherche en cours...</span>
                   </div>
-                ) : query.length > 0 && results.length > 0 ? (
+                ) : query.length >= 2 && results.length > 0 ? (
                   <div className="divide-y divide-border">
                     {/* En-tête des résultats */}
                     <div className="px-4 py-2 bg-muted flex items-center justify-between">
@@ -508,7 +493,7 @@ export default function SmartSearch({
                       </span>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Sparkles className="w-3 h-3" />
-                        Recherche intelligente
+                        Recherche {userRole === 'admin' ? 'globale' : 'personnalisée'}
                       </div>
                     </div>
 
@@ -529,7 +514,7 @@ export default function SmartSearch({
                               <div className={`p-2 rounded-lg ${getTypeColor(result.type)}`}>
                                 {getTypeIcon(result.type)}
                               </div>
-                              
+
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
                                   <h4 className="font-medium text-foreground truncate">
@@ -539,24 +524,24 @@ export default function SmartSearch({
                                     <Star className="w-4 h-4 text-amber-500 fill-current" />
                                   )}
                                 </div>
-                                
+
                                 <p className="text-sm text-muted-foreground line-clamp-2">
                                   {result.description}
                                 </p>
-                                
+
                                 <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                                   <span className="flex items-center gap-1">
                                     <Tag className="w-3 h-3" />
                                     {result.category}
                                   </span>
-                                  
-                                  {result.lastAccessed && (
+
+                                  {result.metadata?.code && (
                                     <span className="flex items-center gap-1">
-                                      <Clock className="w-3 h-3" />
-                                      {result.lastAccessed.toLocaleDateString('fr-FR')}
+                                      <FileText className="w-3 h-3" />
+                                      {result.metadata.code}
                                     </span>
                                   )}
-                                  
+
                                   <span className="flex items-center gap-1">
                                     <BarChart3 className="w-3 h-3" />
                                     {Math.round(result.relevance * 100)}% pertinent
@@ -564,14 +549,14 @@ export default function SmartSearch({
                                 </div>
                               </div>
                             </div>
-                            
+
                             <ArrowRight className="w-4 h-4 text-muted-foreground ml-2 flex-shrink-0" />
                           </div>
                         </motion.div>
                       ))}
                     </div>
                   </div>
-                ) : query.length > 0 ? (
+                ) : query.length >= 2 ? (
                   <div className="px-4 py-8 text-center">
                     <Search className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground mb-1">Aucun résultat trouvé</p>
@@ -586,7 +571,7 @@ export default function SmartSearch({
                       <div className="p-4">
                         <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
                           <TrendingUp className="w-4 h-4" />
-                          Suggestions populaires
+                          Suggestions {userRole === 'teacher' ? 'pour vous' : 'populaires'}
                         </h4>
                         <div className="space-y-2">
                           {suggestions.slice(0, 5).map(suggestion => (
@@ -632,7 +617,7 @@ export default function SmartSearch({
                               className="flex items-center justify-between p-2 rounded-lg hover:bg-muted cursor-pointer transition-colors"
                               onClick={() => {
                                 setQuery(term);
-                                handleSearch();
+                                performSearch(term);
                               }}
                               whileHover={{ x: 4 }}
                             >
@@ -654,9 +639,9 @@ export default function SmartSearch({
                         <span className="text-sm font-medium text-foreground">Conseils de recherche</span>
                       </div>
                       <div className="text-xs text-muted-foreground space-y-1">
-                        <p>• Utilisez des guillemets pour une recherche exacte</p>
-                        <p>• Tapez "prof:" pour rechercher des enseignants</p>
-                        <p>• Utilisez "*" comme caractère joker</p>
+                        <p>• Tapez au moins 2 caractères pour lancer la recherche</p>
+                        <p>• Utilisez les filtres pour affiner les résultats</p>
+                        <p>• Les résultats sont filtrés selon votre rôle</p>
                       </div>
                     </div>
                   </div>

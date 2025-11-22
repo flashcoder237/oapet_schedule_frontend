@@ -9,6 +9,7 @@ import { NotificationCenter } from '@/components/ui/notifications';
 import { useAuth } from '@/lib/auth/context';
 import { cn } from '@/lib/utils';
 import { ThemeSwitcher } from '@/components/ui/theme-switcher';
+import SmartSearch from '@/components/search/SmartSearch';
 
 export default function Header() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -70,7 +71,7 @@ export default function Header() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       className={cn(
-        "sticky top-0 backdrop-blur-lg",
+        "sticky top-0 z-50 backdrop-blur-lg",
         "bg-card/80 border-b border-border",
         "px-6 py-4"
       )}
@@ -103,26 +104,19 @@ export default function Header() {
           </motion.div>
         </div>
 
-        {/* Center - Search */}
-        <motion.div 
-          className="hidden md:flex items-center bg-muted/50 rounded-full px-4 py-2.5 min-w-80 max-w-md border border-border/50"
+        {/* Center - Smart Search */}
+        <motion.div
+          className="hidden md:block min-w-80 max-w-lg flex-1 mx-4"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.15 }}
-          whileFocus={{ 
-            scale: 1.02,
-            borderColor: 'var(--primary)'
-          }}
         >
-          <Search size={16} className="text-muted-foreground mr-3" />
-          <input 
-            type="text" 
-            placeholder="Rechercher dans OAPET..." 
-            className="bg-transparent flex-1 outline-none text-sm text-foreground placeholder:text-muted-foreground"
+          <SmartSearch
+            placeholder="Rechercher dans OAPET..."
+            showFilters={true}
+            showSuggestions={true}
+            showHistory={true}
           />
-          <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-            <span className="text-xs">⌘</span>K
-          </kbd>
         </motion.div>
         
         {/* Right section */}

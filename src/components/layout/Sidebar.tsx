@@ -20,7 +20,9 @@ import {
   Activity,
   BarChart3,
   Brain,
-  UserCog
+  UserCog,
+  LogOut,
+  User
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,7 +30,11 @@ import { useAuth } from '@/hooks/useAuth';
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
-  const { user, isTeacher, isStudent, canManageSchedules } = useAuth();
+  const { user, isTeacher, isStudent, canManageSchedules, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+  };
   
   const navigation = [
     {
@@ -311,8 +317,8 @@ export default function Sidebar() {
         </ul>
       </nav>
       
-      {/* Footer */}
-      <motion.div 
+      {/* Footer - User Info & Logout */}
+      <motion.div
         className="p-4 border-t border-primary-600/20 relative z-10"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -325,11 +331,18 @@ export default function Sidebar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-center"
+              className="space-y-2"
             >
-              <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center mx-auto border border-white/20">
-                <span className="text-xs font-mono">v1</span>
+              <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center mx-auto border border-white/20">
+                <User size={18} />
               </div>
+              <button
+                onClick={handleLogout}
+                className="w-10 h-10 bg-red-500/20 hover:bg-red-500/30 rounded-lg flex items-center justify-center mx-auto border border-red-400/20 transition-colors"
+                title="Déconnexion"
+              >
+                <LogOut size={18} />
+              </button>
             </motion.div>
           ) : (
             <motion.div
@@ -341,20 +354,26 @@ export default function Sidebar() {
               className="space-y-3"
             >
               <div className="flex items-center gap-3 p-3 bg-white/10 rounded-lg border border-white/20 backdrop-blur-sm">
-                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                  <span className="text-xs font-bold">O</span>
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                  <User size={20} />
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">OAPET System</p>
-                  <p className="text-xs text-primary-foreground/60">Version 1.0.0</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {user?.first_name || user?.username || 'Utilisateur'}
+                  </p>
+                  <p className="text-xs text-primary-foreground/60">
+                    {isTeacher() ? 'Enseignant' : 'Administrateur'}
+                  </p>
                 </div>
               </div>
-              
-              <div className="text-center">
-                <p className="text-xs text-primary-foreground/50">
-                  © 2025 OAPET Schedule system
-                </p>
-              </div>
+
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-primary-foreground/80 hover:text-white transition-all duration-200 border border-red-400/20"
+              >
+                <LogOut size={18} className="flex-shrink-0" />
+                <span className="text-sm font-medium">Déconnexion</span>
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
