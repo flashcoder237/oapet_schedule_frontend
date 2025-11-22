@@ -53,8 +53,16 @@ export interface AuthContextType extends AuthState {
   logout: () => void;
   register: (userData: RegisterData) => Promise<void>;
   refreshUser: () => Promise<void>;
-  hasRole: (role: string) => boolean;
-  hasAnyRole: (roles: string[]) => boolean;
+  isAdmin: () => boolean | undefined;
+  isTeacher: () => boolean | undefined;
+  isStudent: () => boolean | undefined;
+  isDepartmentHead: () => boolean | undefined;
+  isScheduler: () => boolean | undefined;
+  hasRole: (roles: string[]) => boolean;
+  canManageUsers: () => boolean | undefined;
+  canManageSchedules: () => boolean | undefined;
+  canManageCourses: () => boolean | undefined;
+  canManageRooms: () => boolean | undefined;
 }
 
 export interface RegisterData {

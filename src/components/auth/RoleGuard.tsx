@@ -1,7 +1,7 @@
 // src/components/auth/RoleGuard.tsx
 'use client';
 
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { PageLoading } from '@/components/ui/loading';
@@ -29,7 +29,7 @@ export default function RoleGuard({
 
     // Vérifier l'authentification
     if (requireAuth && !isAuthenticated) {
-      router.push('/login');
+      router.push('/');
       return;
     }
 

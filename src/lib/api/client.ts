@@ -175,6 +175,7 @@ class ApiClient {
         const response = await fetch(urlString, {
           method: 'GET',
           headers: this.getHeaders(),
+          cache: 'no-store', // Prevent browser caching
         });
 
         const data = await this.handleResponse<T>(response);

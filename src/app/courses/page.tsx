@@ -20,7 +20,7 @@ import { userService } from '@/lib/api/services/users';
 import CourseModal from '@/components/modals/CourseModal';
 import { Badge } from '@/components/ui/badge';
 import type { Course, CourseStats, Department } from '@/types/api';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 import { ImportExport } from '@/components/ui/ImportExport';
 
 export default function CoursesPage() {

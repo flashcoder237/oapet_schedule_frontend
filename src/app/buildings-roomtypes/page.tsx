@@ -17,7 +17,7 @@ import { AddBuildingModal } from '@/components/rooms/AddBuildingModal';
 import { AddRoomTypeModal } from '@/components/rooms/AddRoomTypeModal';
 import { BulkActions, CommonBulkActions } from '@/components/ui/BulkActions';
 import { roomService, Building, RoomType } from '@/services/roomService';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 import ProtectedPage from '@/components/auth/ProtectedPage';
 import apiClient from '@/lib/api/client';
 

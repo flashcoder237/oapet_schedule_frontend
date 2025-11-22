@@ -91,7 +91,7 @@ export default function DebugAuthPage() {
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4 text-yellow-900">Instructions</h2>
           <ul className="list-disc list-inside space-y-2 text-yellow-800">
-            <li>Si "auth_token" est null, vous n'êtes pas connecté → Allez à /login</li>
+            <li>Si "auth_token" est null, vous n'êtes pas connecté → Allez à la page d'accueil (/)</li>
             <li>Si le token existe mais le test API échoue, le token est peut-être invalide ou expiré</li>
             <li>Si le test API réussit (status 200), le problème est ailleurs dans le code</li>
             <li>Le format attendu par le backend Django est: <code className="bg-yellow-100 px-1">Authorization: Token YOUR_TOKEN_HERE</code></li>

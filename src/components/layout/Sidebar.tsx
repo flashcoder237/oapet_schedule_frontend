@@ -25,7 +25,7 @@ import {
   User
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);

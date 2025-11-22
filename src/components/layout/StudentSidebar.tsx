@@ -14,7 +14,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 
 export default function StudentSidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -75,7 +75,6 @@ export default function StudentSidebar() {
 
   const handleLogout = () => {
     logout();
-    router.push('/login');
   };
 
   return (

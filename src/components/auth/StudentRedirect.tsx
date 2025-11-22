@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 
 export function StudentRedirect() {
   const router = useRouter();
@@ -14,7 +14,7 @@ export function StudentRedirect() {
     if (loading) return;
 
     // Si l'utilisateur est un étudiant et n'est pas déjà sur une page étudiant
-    if (user && isStudent() && !pathname.startsWith('/student') && !pathname.startsWith('/login')) {
+    if (user && isStudent() && !pathname.startsWith('/student')) {
       router.push('/student/dashboard');
     }
   }, [user, loading, isStudent, pathname, router]);

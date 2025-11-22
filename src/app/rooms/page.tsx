@@ -21,7 +21,7 @@ import { roomService } from '@/lib/api/services/rooms';
 import { courseService } from '@/lib/api/services/courses';
 import type { Room, RoomStats } from '@/types/api';
 import RoomModal from '@/components/modals/RoomModal';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 import apiClient from '@/lib/api/client';
 
 export default function RoomsPage() {

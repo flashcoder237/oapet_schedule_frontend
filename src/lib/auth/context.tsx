@@ -127,6 +127,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await authService.login(credentials);
       dispatch({ type: 'LOGIN_SUCCESS', payload: response });
       
+      // Role-based redirection after successful login
+      const user = response.user;
+      if (user?.profile?.role === 'student') {
+        window.location.href = '/student/dashboard';
+      } else {
+        window.location.href = '/'; // Default redirect for other roles
+      }
+      
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erreur de connexion';
       dispatch({ type: 'LOGIN_FAILURE', payload: message });
@@ -155,6 +163,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Logout error:', error);
     } finally {
       dispatch({ type: 'LOGOUT' });
+      // Redirect to homepage after logout
+      // We need to get router instance here.
+      // This is a bit tricky in a context file that is not a component.
+      // A better way is to handle this in the component that calls logout.
+      // But for the sake of centralization, we can do it here.
+      // This will require the component to be wrapped in a router.
+      window.location.href = '/';
     }
   };
 
@@ -170,13 +185,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const hasRole = (role: string): boolean => {
-    return state.user?.profile?.role === role || state.user?.is_superuser === true;
+  // Fonctions de vérification des rôles
+  const isAdmin = () => {
+    return state.user?.is_staff || state.user?.is_superuser || state.user?.profile?.role === 'admin';
   };
 
-  const hasAnyRole = (roles: string[]): boolean => {
-    if (state.user?.is_superuser) return true;
-    return roles.includes(state.user?.profile?.role || '');
+  const isTeacher = () => {
+    if (state.user?.is_staff || state.user?.is_superuser) return false;
+    return state.user?.profile?.role === 'professor' || state.user?.profile?.role === 'teacher';
+  };
+
+  const isStudent = () => {
+    return state.user?.profile?.role === 'student';
+  };
+  
+  const isDepartmentHead = () => {
+    return state.user?.profile?.role === 'department_head';
+  };
+
+  const isScheduler = () => {
+    return state.user?.profile?.role === 'scheduler';
+  };
+
+  const hasRole = (roles: string[]) => {
+    if (!state.user) return false;
+    const userRole = state.user.profile?.role || '';
+    return roles.includes(userRole) || state.user.is_staff || state.user.is_superuser;
+  };
+
+  const canManageUsers = () => {
+    return isAdmin() || isDepartmentHead() || isScheduler();
+  };
+
+  const canManageSchedules = () => {
+    return isAdmin() || isDepartmentHead() || isScheduler();
+  };
+
+  const canManageCourses = () => {
+    return isAdmin() || isDepartmentHead();
+  };
+
+  const canManageRooms = () => {
+    return isAdmin();
   };
 
   const value: AuthContextType = {
@@ -185,8 +235,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     register,
     refreshUser,
+    isAdmin,
+    isTeacher,
+    isStudent,
+    isDepartmentHead,
+    isScheduler,
     hasRole,
-    hasAnyRole,
+    canManageUsers,
+    canManageSchedules,
+    canManageCourses,
+    canManageRooms,
   };
 
   return (

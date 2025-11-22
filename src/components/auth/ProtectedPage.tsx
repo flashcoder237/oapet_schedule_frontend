@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 import { PageLoading } from '@/components/ui/loading';
 
 interface ProtectedPageProps {
@@ -26,7 +26,7 @@ export default function ProtectedPage({
     if (loading) return;
 
     if (!user) {
-      router.push('/login');
+      router.push('/');
       return;
     }
 

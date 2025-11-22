@@ -21,7 +21,7 @@ import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 import { teacherService, type TeacherProfile, type TeacherStats } from '@/lib/api/services/teachers';
 
 export default function TeacherDashboardPage() {

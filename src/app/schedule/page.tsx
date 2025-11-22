@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import AnimatedBackground from '@/components/ui/animated-background';
 import { BulkActions, CommonBulkActions } from '@/components/ui/BulkActions';
 import { Plus, Settings2, X, Calendar, CheckSquare } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 import { getChatbotActionExecutor } from '@/services/chatbotActionExecutor';
 
 // Import des composants créés

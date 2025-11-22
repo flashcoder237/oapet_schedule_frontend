@@ -22,7 +22,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { apiClient } from '@/lib/api/client';
 import { teacherService } from '@/lib/api/services/teachers';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 
 interface TeacherPreference {
   id: number;
