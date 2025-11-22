@@ -140,63 +140,68 @@ export const teacherService = {
 
   /**
    * Récupère les sessions du jour pour un enseignant
+   * Utilise le nouvel endpoint qui retourne les SessionOccurrence (avec modifications admin)
    */
   async getTodaySchedule(teacherId: number): Promise<any[]> {
-    const today = new Date().toISOString().split('T')[0];
-    // Utiliser teacher pour filtrer par enseignant (correspond au backend)
-    const url = `/schedules/sessions/?teacher=${teacherId}&date=${today}`;
+    // Utiliser le nouvel endpoint qui utilise les occurrences
+    const url = `/courses/teachers/${teacherId}/today_sessions/`;
     console.log('getTodaySchedule URL:', url);
     const response = await apiClient.get<any>(url);
-    return response.results || response || [];
+    return response || [];
   },
 
   /**
    * Récupère le prochain cours à venir pour un enseignant (dans les 7 prochains jours)
+   * Utilise le nouvel endpoint qui retourne les SessionOccurrence (avec modifications admin)
    */
   async getNextUpcomingSession(teacherId: number): Promise<any | null> {
-    const today = new Date();
-
-    // Chercher dans les 7 prochains jours
-    for (let i = 0; i <= 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
-
-      const url = `/schedules/sessions/?teacher=${teacherId}&date=${dateStr}`;
+    try {
+      // Utiliser le nouvel endpoint qui retourne les sessions de la semaine avec occurrences
+      const url = `/courses/teachers/${teacherId}/weekly_sessions/`;
       const response = await apiClient.get<any>(url);
-      const sessions = response.results || response || [];
+      const sessions = response.sessions || response || [];
 
-      if (sessions.length > 0) {
-        // Trier par heure de début
-        const sortedSessions = sessions.sort((a: any, b: any) => {
-          const aTime = a.specific_start_time || a.time_slot_details?.start_time || '';
-          const bTime = b.specific_start_time || b.time_slot_details?.start_time || '';
-          return aTime.localeCompare(bTime);
-        });
+      if (sessions.length === 0) {
+        return null;
+      }
 
-        // Si c'est aujourd'hui, filtrer les sessions passées
-        if (i === 0) {
-          const now = new Date();
-          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const todayStr = now.toISOString().split('T')[0];
 
-          const upcomingSession = sortedSessions.find((session: any) => {
-            const startTime = session.specific_start_time || session.time_slot_details?.start_time;
-            if (!startTime) return false;
-            const [h, m] = startTime.split(':').map(Number);
-            return h * 60 + m > currentMinutes;
-          });
+      // Trier par date et heure
+      const sortedSessions = sessions.sort((a: any, b: any) => {
+        const dateCompare = (a.specific_date || '').localeCompare(b.specific_date || '');
+        if (dateCompare !== 0) return dateCompare;
+        const aTime = a.specific_start_time || '';
+        const bTime = b.specific_start_time || '';
+        return aTime.localeCompare(bTime);
+      });
 
-          if (upcomingSession) {
-            return { ...upcomingSession, upcoming_date: dateStr };
+      // Trouver le prochain cours
+      for (const session of sortedSessions) {
+        const sessionDate = session.specific_date;
+        const startTime = session.specific_start_time;
+
+        if (!sessionDate || !startTime) continue;
+
+        // Si c'est aujourd'hui, vérifier que le cours n'est pas passé
+        if (sessionDate === todayStr) {
+          const [h, m] = startTime.split(':').map(Number);
+          if (h * 60 + m > currentMinutes) {
+            return { ...session, upcoming_date: sessionDate };
           }
-        } else {
-          // Pour les jours futurs, retourner la première session
-          return { ...sortedSessions[0], upcoming_date: dateStr };
+        } else if (sessionDate > todayStr) {
+          // Pour les jours futurs
+          return { ...session, upcoming_date: sessionDate };
         }
       }
-    }
 
-    return null;
+      return null;
+    } catch (error) {
+      console.error('Error fetching next upcoming session:', error);
+      return null;
+    }
   },
 
   /**
@@ -212,28 +217,21 @@ export const teacherService = {
 
   /**
    * Calcule les statistiques d'un enseignant à partir de ses sessions
+   * Utilise le nouvel endpoint qui retourne les SessionOccurrence (avec modifications admin)
    */
   async getMyStats(teacherId: number): Promise<TeacherStats> {
     try {
-      // Get sessions for this week
-      const today = new Date();
-      const monday = new Date(today);
-      const day = monday.getDay();
-      const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
-      monday.setDate(diff);
-      const weekStart = monday.toISOString().split('T')[0];
-
-      // Utiliser teacher pour filtrer (correspond au backend)
-      const sessionsUrl = `/schedules/sessions/?teacher=${teacherId}&week_start=${weekStart}`;
-      console.log('getMyStats sessions URL:', sessionsUrl);
-      const weeklyResponse = await apiClient.get<any>(sessionsUrl);
-      const weeklySessions = weeklyResponse.results || weeklyResponse || [];
+      // Utiliser le nouvel endpoint qui retourne les sessions de la semaine avec occurrences
+      const url = `/courses/teachers/${teacherId}/weekly_sessions/`;
+      console.log('getMyStats URL:', url);
+      const weeklyResponse = await apiClient.get<any>(url);
+      const weeklySessions = weeklyResponse.sessions || weeklyResponse || [];
 
       // Calculate hours this week
       let totalHoursThisWeek = 0;
       weeklySessions.forEach((session: any) => {
-        const start = session.specific_start_time || session.time_slot_details?.start_time;
-        const end = session.specific_end_time || session.time_slot_details?.end_time;
+        const start = session.specific_start_time;
+        const end = session.specific_end_time;
         if (start && end) {
           const [startH, startM] = start.split(':').map(Number);
           const [endH, endM] = end.split(':').map(Number);
@@ -241,7 +239,7 @@ export const teacherService = {
         }
       });
 
-      // Get courses count avec teacher
+      // Get courses count
       const coursesUrl = `/courses/courses/?teacher=${teacherId}`;
       console.log('getMyStats courses URL:', coursesUrl);
       const coursesResponse = await apiClient.get<any>(coursesUrl);
