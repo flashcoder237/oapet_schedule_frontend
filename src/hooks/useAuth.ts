@@ -82,6 +82,8 @@ export function useAuth() {
   };
 
   const isTeacher = () => {
+    // Un admin n'est pas considéré comme enseignant même s'il a le rôle
+    if (user?.is_staff || user?.is_superuser) return false;
     return user?.role === 'professor' || user?.profile?.role === 'professor' ||
            user?.role === 'teacher' || user?.profile?.role === 'teacher';
   };

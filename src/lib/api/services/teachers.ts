@@ -143,8 +143,8 @@ export const teacherService = {
    */
   async getTodaySchedule(teacherId: number): Promise<any[]> {
     const today = new Date().toISOString().split('T')[0];
-    // Utiliser assigned_teacher pour filtrer par enseignant
-    const url = `/schedules/sessions/?assigned_teacher=${teacherId}&specific_date=${today}`;
+    // Utiliser teacher pour filtrer par enseignant (correspond au backend)
+    const url = `/schedules/sessions/?teacher=${teacherId}&date=${today}`;
     console.log('getTodaySchedule URL:', url);
     const response = await apiClient.get<any>(url);
     return response.results || response || [];
@@ -154,9 +154,10 @@ export const teacherService = {
    * Récupère les cours assignés à un enseignant
    */
   async getMyCourses(teacherId: number): Promise<any[]> {
-    // Essayer avec assigned_teacher qui est souvent le nom du champ dans Django
-    const response = await apiClient.get<any>(`/courses/courses/?assigned_teacher=${teacherId}`);
-    console.log('getMyCourses URL:', `/courses/courses/?assigned_teacher=${teacherId}`);
+    // Utiliser teacher pour filtrer (correspond au backend)
+    const url = `/courses/courses/?teacher=${teacherId}`;
+    console.log('getMyCourses URL:', url);
+    const response = await apiClient.get<any>(url);
     return response.results || response || [];
   },
 
@@ -173,8 +174,8 @@ export const teacherService = {
       monday.setDate(diff);
       const weekStart = monday.toISOString().split('T')[0];
 
-      // Utiliser assigned_teacher pour filtrer
-      const sessionsUrl = `/schedules/sessions/?assigned_teacher=${teacherId}&week_start=${weekStart}`;
+      // Utiliser teacher pour filtrer (correspond au backend)
+      const sessionsUrl = `/schedules/sessions/?teacher=${teacherId}&week_start=${weekStart}`;
       console.log('getMyStats sessions URL:', sessionsUrl);
       const weeklyResponse = await apiClient.get<any>(sessionsUrl);
       const weeklySessions = weeklyResponse.results || weeklyResponse || [];
@@ -191,8 +192,8 @@ export const teacherService = {
         }
       });
 
-      // Get courses count avec assigned_teacher
-      const coursesUrl = `/courses/courses/?assigned_teacher=${teacherId}`;
+      // Get courses count avec teacher
+      const coursesUrl = `/courses/courses/?teacher=${teacherId}`;
       console.log('getMyStats courses URL:', coursesUrl);
       const coursesResponse = await apiClient.get<any>(coursesUrl);
       const courses = coursesResponse.results || coursesResponse || [];

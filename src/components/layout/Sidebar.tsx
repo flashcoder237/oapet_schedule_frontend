@@ -40,6 +40,13 @@ export default function Sidebar() {
       hideForTeacher: true // Les enseignants ont leur propre dashboard
     },
     {
+      name: 'Tableau de bord',
+      href: '/admin/dashboard',
+      icon: BarChart3,
+      description: 'Statistiques et analyses',
+      allowTeacher: false // Seulement pour les admins
+    },
+    {
       name: 'Mon Tableau de bord',
       href: '/teacher/dashboard',
       icon: LayoutDashboard,

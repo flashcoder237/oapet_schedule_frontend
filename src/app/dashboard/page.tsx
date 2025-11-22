@@ -70,6 +70,7 @@ import AIInsightsPanel from '@/components/dashboard/AIInsightsPanel';
 import { useAuth } from '@/lib/auth/context';
 import { courseService } from '@/lib/api/services/courses';
 import scheduleService from '@/services/scheduleService';
+import { apiClient } from '@/lib/api/client';
 import type { DashboardStats } from '@/types/api';
 
 interface DashboardModule {
@@ -90,6 +91,33 @@ interface QuickStats {
   totalRooms: number;
   activeSchedules: number;
   weeklyEvents: number;
+  unresolvedConflicts: number;
+  criticalConflicts: number;
+  occupancyRate: number;
+}
+
+interface DashboardApiResponse {
+  overview: {
+    total_students: number;
+    total_courses: number;
+    total_teachers: number;
+    total_rooms: number;
+    active_schedules: number;
+    weekly_events: number;
+    unresolved_conflicts: number;
+    critical_conflicts: number;
+    occupancy_rate: number;
+  };
+  distributions: {
+    courses_by_level: Array<{ level: string; count: number }>;
+    teachers_by_department: Array<{ department__name: string; department__code: string; count: number }>;
+    sessions_by_type: Array<{ session_type: string; count: number }>;
+  };
+  alerts: {
+    conflicts_needing_attention: number;
+    rooms_over_capacity: number;
+    schedules_pending_approval: number;
+  };
 }
 
 export default function Dashboard() {
@@ -102,13 +130,17 @@ export default function Dashboard() {
   const [viewMode, setViewMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [quickStats, setQuickStats] = useState<QuickStats>({
-    totalStudents: 1250,
-    totalCourses: 48,
-    totalTeachers: 25,
-    totalRooms: 15,
-    activeSchedules: 12,
-    weeklyEvents: 156
+    totalStudents: 0,
+    totalCourses: 0,
+    totalTeachers: 0,
+    totalRooms: 0,
+    activeSchedules: 0,
+    weeklyEvents: 0,
+    unresolvedConflicts: 0,
+    criticalConflicts: 0,
+    occupancyRate: 0
   });
+  const [alerts, setAlerts] = useState<DashboardApiResponse['alerts'] | null>(null);
   const [scheduleItems, setScheduleItems] = useState<any[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const { user } = useAuth();
@@ -199,8 +231,30 @@ export default function Dashboard() {
     const loadDashboardData = async () => {
       try {
         setIsLoading(true);
-        const dashboardStats = await courseService.getCoursesStats();
-        setStats(dashboardStats);
+
+        // Charger les statistiques depuis l'API dashboard
+        const dashboardData = await apiClient.get<DashboardApiResponse>('/dashboard/stats/');
+
+        // Mettre à jour les quickStats avec les données réelles
+        setQuickStats({
+          totalStudents: dashboardData.overview.total_students,
+          totalCourses: dashboardData.overview.total_courses,
+          totalTeachers: dashboardData.overview.total_teachers,
+          totalRooms: dashboardData.overview.total_rooms,
+          activeSchedules: dashboardData.overview.active_schedules,
+          weeklyEvents: dashboardData.overview.weekly_events,
+          unresolvedConflicts: dashboardData.overview.unresolved_conflicts,
+          criticalConflicts: dashboardData.overview.critical_conflicts,
+          occupancyRate: dashboardData.overview.occupancy_rate
+        });
+
+        // Stocker les alertes
+        setAlerts(dashboardData.alerts);
+
+        // Charger aussi les stats de cours pour les autres composants
+        const courseStats = await courseService.getCoursesStats();
+        setStats(courseStats);
+
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
       } finally {
@@ -394,6 +448,61 @@ export default function Dashboard() {
                 </div>
               </motion.div>
             </div>
+
+            {/* Alertes et conflits */}
+            {(quickStats.unresolvedConflicts > 0 || (alerts && alerts.schedules_pending_approval > 0)) && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {quickStats.unresolvedConflicts > 0 && (
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-4 rounded-xl cursor-pointer"
+                    onClick={() => window.location.href = '/schedules/conflicts'}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-yellow-100 text-sm">Conflits à résoudre</p>
+                        <p className="text-2xl font-bold">{quickStats.unresolvedConflicts}</p>
+                        {quickStats.criticalConflicts > 0 && (
+                          <p className="text-yellow-200 text-xs mt-1">
+                            dont {quickStats.criticalConflicts} critique(s)
+                          </p>
+                        )}
+                      </div>
+                      <AlertTriangle className="w-8 h-8 text-yellow-200" />
+                    </div>
+                  </motion.div>
+                )}
+
+                {alerts && alerts.schedules_pending_approval > 0 && (
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white p-4 rounded-xl cursor-pointer"
+                    onClick={() => window.location.href = '/gestion-emplois'}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-cyan-100 text-sm">En attente de publication</p>
+                        <p className="text-2xl font-bold">{alerts.schedules_pending_approval}</p>
+                      </div>
+                      <Clock className="w-8 h-8 text-cyan-200" />
+                    </div>
+                  </motion.div>
+                )}
+
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-4 rounded-xl"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-teal-100 text-sm">Taux d'occupation</p>
+                      <p className="text-2xl font-bold">{quickStats.occupancyRate}%</p>
+                    </div>
+                    <Target className="w-8 h-8 text-teal-200" />
+                  </div>
+                </motion.div>
+              </div>
+            )}
 
             {/* Panel AI Insights */}
             <AIInsightsPanel className="mb-6" />
